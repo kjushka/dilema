@@ -1,15 +1,30 @@
 package service
 
-import "dilema/internal/action"
+import (
+	"dilema/internal/action"
+	"math/rand"
+)
 
-type someService struct {
+type someServiceWithParams struct {
 	a, b int
 }
 
-func NewSomeAction(a, b int) action.SomeAction {
-	return &someService{a, b}
+func NewSomeActionByWithParams(a, b int) action.SomeAction {
+	return &someServiceWithParams{a, b}
 }
 
-func (ss *someService) Sum() int {
+func (ssp *someServiceWithParams) Sum() int {
+	return ssp.a + ssp.b
+}
+
+type someServiceWithoutParams struct {
+	a, b int
+}
+
+func NewSomeActionWithoutParams() action.SomeAction {
+	return &someServiceWithoutParams{rand.Int(), rand.Int()}
+}
+
+func (ss *someServiceWithoutParams) Sum() int {
 	return ss.a + ss.b
 }

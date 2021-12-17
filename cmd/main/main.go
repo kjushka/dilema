@@ -8,12 +8,17 @@ import (
 )
 
 func main() {
-	di := dilema.Init()
-	err := di.ProvideSingleTone(service.NewSomeAction, 1, 3)
+	diFirst := dilema.Init()
+	err := diFirst.ProvideSingleTone(service.NewSomeActionByWithParams, 1, 3)
 	if err != nil {
 		panic(err)
 	}
 
-	sum := di.Get(new(action.SomeAction)).(action.SomeAction).Sum()
+	sum := diFirst.Get(new(action.SomeAction)).(action.SomeAction).Sum()
 	log.Println(sum)
+
+	diSecond := dilema.Init()
+	err = diSecond.ProvideAll(service.NewSomeActionWithoutParams, service.NewSomePrinterWithoutParams)
+	log.Println("SUM:", diSecond.Get(new(action.SomeAction)).(action.SomeAction).Sum())
+	diSecond.Get(new(action.SomePrinter)).(action.SomePrinter).PrintSome()
 }
