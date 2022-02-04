@@ -1,6 +1,6 @@
 package dilema
 
-type serviceType int
+type containerType int
 
 const (
 	singleToneType = iota
