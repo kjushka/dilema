@@ -26,6 +26,9 @@ type Dicon interface {
 	Recover(function interface{}, args ...interface{}) (cr CallResults, err error)
 	RecoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error)
 	Ctx() context.Context
+	SetCtx(ctx context.Context)
+	AddToCtx(alias string, value interface{})
+	GetFromCtx(alias string) interface{}
 }
 
 func Init() Dicon {
