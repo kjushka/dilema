@@ -1,6 +1,7 @@
 package dilema
 
 import (
+	"context"
 	"dilema/dilerr"
 	"fmt"
 	"reflect"
@@ -17,6 +18,7 @@ type dicon struct {
 	cache      map[reflect.Type]reflect.Value
 
 	mutex *sync.Mutex
+	ctx   context.Context
 }
 
 func (di *dicon) RegisterTemporal(alias string, serviceInit interface{}) error {

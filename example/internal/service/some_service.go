@@ -1,7 +1,7 @@
 package service
 
 import (
-	"dilema/internal/action"
+	"dilema/example/internal/action"
 	"math/rand"
 )
 

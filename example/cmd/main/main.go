@@ -2,7 +2,7 @@ package main
 
 import (
 	"dilema"
-	"dilema/internal/service"
+	"dilema/example/internal/service"
 )
 
 func main() {

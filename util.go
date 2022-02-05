@@ -21,8 +21,12 @@ func checkProvidedTypeIsCreator(provided interface{}) (reflect.Type, reflect.Val
 }
 
 func checkIsDestroyer(destroyer interface{}) error {
-	if reflect.TypeOf(destroyer).Kind() != reflect.Func {
+	dType := reflect.TypeOf(destroyer)
+	if dType.Kind() != reflect.Func {
 		return dilerr.NewTypeError("Unexpected destroyer type")
+	}
+	if dType.NumIn() != 0 {
+		return dilerr.NewTypeError("Destroyer must have no in arguments")
 	}
 	return nil
 }
@@ -81,4 +85,60 @@ func checkHasError(creationResults []reflect.Value) (error, int) {
 	}
 
 	return nil, -1
+}
+
+func (di *dicon) createCorrectInStruct(s reflect.Value, args ...interface{}) (reflect.Value, bool) {
+	sType := s.Type()
+	newValue := reflect.Zero(sType)
+	for i := 0; i < sType.NumField(); i++ {
+		if sType.Field(i).Type.Kind() != reflect.Interface {
+			return s, false
+		}
+		if alias := sType.Field(i).Tag.Get("dilema"); alias != "" {
+			container, ok := di.singletonesByAlias[alias]
+			if ok {
+				newValue.Field(i).Set(container)
+				continue
+			}
+			constuctor, ok := di.temporalByAlias[alias]
+			if ok {
+				argsIndex := 0
+				creationResults, err := di.createService(constuctor, &argsIndex, args...)
+				if err != nil {
+					return s, false
+				}
+				err, errIndex := checkHasError(creationResults)
+				if errIndex != -1 && err != nil {
+					return s, false
+				}
+
+				newValue.Field(i).Set(creationResults[0])
+				continue
+			}
+		} else {
+			fieldType := sType.Field(i).Type
+			container, ok := di.singletonesByType[fieldType]
+			if ok {
+				newValue.Field(i).Set(container)
+				continue
+			}
+			constuctor, ok := di.temporalByType[fieldType]
+			if ok {
+				argsIndex := 0
+				creationResults, err := di.createService(constuctor, &argsIndex, args...)
+				if err != nil {
+					return s, false
+				}
+				err, errIndex := checkHasError(creationResults)
+				if errIndex != -1 && err != nil {
+					return s, false
+				}
+
+				newValue.Field(i).Set(creationResults[0])
+				continue
+			}
+		}
+	}
+
+	return newValue, true
 }

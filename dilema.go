@@ -1,6 +1,7 @@
 package dilema
 
 import (
+	"context"
 	"reflect"
 	"sync"
 )
@@ -20,6 +21,11 @@ type Dicon interface {
 	MustGetTemporal(alias string, args ...interface{}) interface{}
 	ProcessTemporal(alias string, container interface{}, args ...interface{}) error
 	MustProcessTemporal(alias string, container interface{}, args ...interface{})
+	Run(function interface{}, args ...interface{}) (CallResults, error)
+	MustRun(function interface{}, args ...interface{}) CallResults
+	Recover(function interface{}, args ...interface{}) (cr CallResults, err error)
+	RecoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error)
+	Ctx() context.Context
 }
 
 func Init() Dicon {
@@ -33,5 +39,6 @@ func Init() Dicon {
 		cache:      make(map[reflect.Type]reflect.Value),
 
 		mutex: &sync.Mutex{},
+		ctx: context.Background(),
 	}
 }
