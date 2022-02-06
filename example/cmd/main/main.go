@@ -5,7 +5,9 @@ import (
 	"dilema/example/internal/action"
 	"dilema/example/internal/service"
 	"fmt"
+	"io"
 	"log"
+	"os"
 )
 
 func main() {
@@ -48,9 +50,15 @@ func main() {
 		}
 		printer.(action.SomePrinter).PrintSome()
 
-		res, err := diThird.Recover(someFunc, 1)
+		var file io.Reader
+		file, err = os.Open("./text.txt")
+		if err != nil {
+			panic(err)
+		}
+		res, err := diThird.Recover(someFunc, file, 1)
 		if err != nil {
 			log.Println(err.Error())
+			panic(err)
 		}
 		var (
 			val int
@@ -60,13 +68,21 @@ func main() {
 	}
 }
 
-func someFunc(diStruct *struct {
+func someFunc(num int, diStruct *struct {
 	Action  action.SomeAction  `dilema:"action"`
 	Printer action.SomePrinter `dilema:"printer"`
-}, num int) (val int, err error) {
-	val, err = 666, fmt.Errorf("test error")
+}, r io.Reader) (val int, err error) {
+	val = 666
 	log.Println("inside someFunc:", "num:", num)
 	log.Println("inside someFunc:", "sum:", diStruct.Action.Sum())
 	diStruct.Printer.PrintSome()
+	var buf []byte 
+	n, err := r.Read(buf)
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+	err = fmt.Errorf("test error")
+	log.Println("readed bytes:", n)
+	log.Println("readed string:", string(buf))
 	return
 }

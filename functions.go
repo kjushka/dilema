@@ -55,6 +55,7 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 	}
 
 	argsMap := make(map[reflect.Type][]reflect.Value)
+	types := make([]reflect.Type, 0)
 	for _, arg := range args {
 		tArg, vArg := reflect.TypeOf(arg), reflect.ValueOf(arg)
 		if arr, ok := argsMap[tArg]; ok {
@@ -62,6 +63,7 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 		} else {
 			argsMap[tArg] = []reflect.Value{vArg}
 		}
+		types = append(types, tArg)
 	}
 
 	callArgs := make([]reflect.Value, t.NumIn())
@@ -76,6 +78,7 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 			}
 			continue
 		}
+
 		if tArg.Kind() == reflect.Interface {
 			container, ok := di.singletonesByType[tArg]
 			if ok {
@@ -96,6 +99,26 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 
 				callArgs[i] = creationResults[0]
 			}
+
+			flag := false
+			for _, tt := range types {
+				if tt.Implements(tArg) {
+					if arr, ok := argsMap[tt]; ok && len(arr) > 0 {
+						callArgs[i] = arr[0]
+						if len(arr) == 1 {
+							delete(argsMap, tt)
+						} else {
+							argsMap[tt] = arr[1:]
+						}
+
+						flag = true
+						break
+					}
+				}
+			}
+			if flag {
+				continue
+			}
 		}
 
 		if tArg.Kind() == reflect.Ptr &&
@@ -115,6 +138,7 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 				continue
 			}
 		}
+
 		return nil, dilerr.NewTypeError("not enough arguments to call a function")
 	}
 
@@ -142,6 +166,7 @@ func (cr callResults) MustProcess(values ...interface{}) {
 
 func (cr callResults) process(values ...interface{}) error {
 	crMap := make(map[reflect.Type][]reflect.Value)
+	types := make([]reflect.Type, 0)
 	for _, res := range cr {
 		tRes := res.Type()
 		if arr, ok := crMap[tRes]; ok {
@@ -149,6 +174,7 @@ func (cr callResults) process(values ...interface{}) error {
 		} else {
 			crMap[tRes] = []reflect.Value{res}
 		}
+		types = append(types, tRes)
 	}
 
 	for _, val := range values {
@@ -158,16 +184,35 @@ func (cr callResults) process(values ...interface{}) error {
 			return dilerr.NewTypeError("expected ptr values")
 		}
 		tVal := vVal.Elem().Type()
+		if !vVal.Elem().CanSet() {
+			return dilerr.NewTypeError("agruments can't be setted")
+		}
 		if arr, ok := crMap[tVal]; ok {
-			if !vVal.Elem().CanSet() {
-				return dilerr.NewTypeError("agruments can't be setted")
-			}
 			vVal.Elem().Set(arr[0])
 			if len(arr) == 1 {
 				delete(crMap, tVal)
 			} else {
 				crMap[tVal] = arr[1:]
 			}
+			continue
+		}
+
+		flag := false
+		for _, tt := range types {
+			if tVal.Kind() == reflect.Interface && tt.Implements(tVal) {
+				if arr, ok := crMap[tt]; ok && len(arr) > 0 {
+					vVal.Elem().Set(arr[0])
+					if len(arr) == 1 {
+						delete(crMap, tVal)
+					} else {
+						crMap[tVal] = arr[1:]
+					}
+					flag = true
+					break
+				}
+			}
+		}
+		if flag {
 			continue
 		}
 		return dilerr.NewTypeError("results and values are not comparable")
