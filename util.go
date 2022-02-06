@@ -89,15 +89,20 @@ func checkHasError(creationResults []reflect.Value) (error, int) {
 
 func (di *dicon) createCorrectInStruct(s reflect.Value, args ...interface{}) (reflect.Value, bool) {
 	sType := s.Type()
-	newValue := reflect.Zero(sType)
+	newValue := reflect.New(sType)
+	elem := newValue.Elem()
+
 	for i := 0; i < sType.NumField(); i++ {
 		if sType.Field(i).Type.Kind() != reflect.Interface {
+			return s, false
+		}
+		if !elem.Field(i).CanSet() {
 			return s, false
 		}
 		if alias := sType.Field(i).Tag.Get("dilema"); alias != "" {
 			container, ok := di.singletonesByAlias[alias]
 			if ok {
-				newValue.Field(i).Set(container)
+				elem.Field(i).Set(container)
 				continue
 			}
 			constuctor, ok := di.temporalByAlias[alias]
@@ -112,14 +117,14 @@ func (di *dicon) createCorrectInStruct(s reflect.Value, args ...interface{}) (re
 					return s, false
 				}
 
-				newValue.Field(i).Set(creationResults[0])
+				elem.Field(i).Set(creationResults[0])
 				continue
 			}
 		} else {
 			fieldType := sType.Field(i).Type
 			container, ok := di.singletonesByType[fieldType]
 			if ok {
-				newValue.Field(i).Set(container)
+				elem.Field(i).Set(container)
 				continue
 			}
 			constuctor, ok := di.temporalByType[fieldType]
@@ -134,7 +139,7 @@ func (di *dicon) createCorrectInStruct(s reflect.Value, args ...interface{}) (re
 					return s, false
 				}
 
-				newValue.Field(i).Set(creationResults[0])
+				elem.Field(i).Set(creationResults[0])
 				continue
 			}
 		}

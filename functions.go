@@ -95,10 +95,22 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 				callArgs[i] = creationResults[0]
 			}
 		}
-		if tArg.Kind() == reflect.Struct {
-			created, ok := di.createCorrectInStruct(reflect.Zero(tArg), args...)
+
+		if tArg.Kind() == reflect.Ptr &&
+			tArg.Elem().Kind() == reflect.Struct {
+			zeroV := reflect.Zero(tArg.Elem())
+			created, ok := di.createCorrectInStruct(zeroV, args...)
 			if ok {
 				callArgs[i] = created
+				continue
+			}
+		}
+		if tArg.Kind() == reflect.Struct {
+			zeroV := reflect.Zero(tArg)
+			created, ok := di.createCorrectInStruct(zeroV, args...)
+			if ok {
+				callArgs[i] = created.Elem()
+				continue
 			}
 		}
 		return nil, dilerr.NewTypeError("not enough arguments to call a function")
