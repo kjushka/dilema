@@ -4,6 +4,7 @@ import (
 	"dilema"
 	"dilema/example/internal/action"
 	"dilema/example/internal/service"
+	"fmt"
 	"log"
 )
 
@@ -47,14 +48,25 @@ func main() {
 		}
 		printer.(action.SomePrinter).PrintSome()
 
-		diThird.MustRun(someFunc)
+		res, err := diThird.Recover(someFunc, 1)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		var (
+			val int
+		)
+		res.MustProcess(&val, &err)
+		log.Println(val, err)
 	}
 }
 
 func someFunc(diStruct *struct {
 	Action  action.SomeAction  `dilema:"action"`
 	Printer action.SomePrinter `dilema:"printer"`
-}) {
-	log.Println("inside someFunc:", diStruct.Action.Sum())
+}, num int) (val int, err error) {
+	val, err = 666, fmt.Errorf("test error")
+	log.Println("inside someFunc:", "num:", num)
+	log.Println("inside someFunc:", "sum:", diStruct.Action.Sum())
 	diStruct.Printer.PrintSome()
+	return
 }

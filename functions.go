@@ -31,7 +31,9 @@ func (di *dicon) Recover(function interface{}, args ...interface{}) (cr CallResu
 		}
 	}()
 
-	return di.MustRun(function, args...), nil
+	cr, err = di.MustRun(function, args...), nil
+
+	return
 }
 
 func (di *dicon) RecoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error) {
@@ -141,7 +143,7 @@ func (cr callResults) MustProcess(values ...interface{}) {
 func (cr callResults) process(values ...interface{}) error {
 	crMap := make(map[reflect.Type][]reflect.Value)
 	for _, res := range cr {
-		tRes := reflect.TypeOf(res)
+		tRes := res.Type()
 		if arr, ok := crMap[tRes]; ok {
 			crMap[tRes] = append(arr, res)
 		} else {
@@ -150,12 +152,17 @@ func (cr callResults) process(values ...interface{}) error {
 	}
 
 	for _, val := range values {
-		tVal, vVal := reflect.TypeOf(val), reflect.ValueOf(val)
+		vVal := reflect.ValueOf(val)
+
+		if val == nil || vVal.Type().Kind() != reflect.Ptr {
+			return dilerr.NewTypeError("expected ptr values")
+		}
+		tVal := vVal.Elem().Type()
 		if arr, ok := crMap[tVal]; ok {
-			if !vVal.CanSet() {
+			if !vVal.Elem().CanSet() {
 				return dilerr.NewTypeError("agruments can't be setted")
 			}
-			vVal.Set(arr[0])
+			vVal.Elem().Set(arr[0])
 			if len(arr) == 1 {
 				delete(crMap, tVal)
 			} else {
