@@ -5,20 +5,14 @@ import (
 	"dilema/dilerr"
 	"fmt"
 	"reflect"
-	"sync"
 )
 
 type dicon struct {
-	temporalByAlias    map[string]reflect.Value
-	temporalByType     map[reflect.Type]reflect.Value
-	singletonesByAlias map[string]reflect.Value
-	singletonesByType  map[reflect.Type]reflect.Value
+	*temporalStore
+	*singleToneStore
+	*destroyerStore
 
-	destroyers []reflect.Value
-	cache      map[reflect.Type]reflect.Value
-
-	mutex *sync.Mutex
-	ctx   context.Context
+	ctx context.Context
 }
 
 func (di *dicon) RegisterTemporal(alias string, serviceInit interface{}) error {
@@ -35,7 +29,7 @@ func (di *dicon) MustRegisterTemporal(alias string, serviceInit interface{}) {
 // registerTemporal provides new service, which will be initialized when
 // you call Get method and be destroyed with GC after work will be done
 func (di *dicon) registerTemporal(alias string, serviceInit interface{}) error {
-	if _, ok := di.temporalByAlias[alias]; ok {
+	if _, ok := di.getTemporalByAlias(alias); ok {
 		return dilerr.GetAlreadyExistError(alias)
 	}
 	t, v, err := checkProvidedTypeIsCreator(serviceInit)
@@ -43,8 +37,7 @@ func (di *dicon) registerTemporal(alias string, serviceInit interface{}) error {
 		return err
 	}
 
-	di.temporalByAlias[alias] = v
-	di.temporalByType[t] = v
+	di.addTemporal(alias, v, t)
 	return nil
 }
 
@@ -75,7 +68,7 @@ func (di *dicon) registerSingleTone(
 	serviceInit interface{},
 	args ...interface{},
 ) error {
-	if _, ok := di.singletonesByAlias[alias]; ok {
+	if _, ok := di.getSingleToneByAlias(alias); ok {
 		return dilerr.GetAlreadyExistError(alias)
 	}
 	t, v, err := checkProvidedTypeIsCreator(serviceInit)
@@ -93,9 +86,10 @@ func (di *dicon) registerSingleTone(
 		return err
 	}
 
-	di.singletonesByAlias[alias] = creationResults[0]
-	di.singletonesByType[t] = creationResults[0]
-	di.destroyers = append(di.destroyers, creationResults[destroyerIndex])
+	di.addSingleTone(alias, v, t)
+	if destroyerIndex != -1 {
+		di.addDestroyer(creationResults[destroyerIndex])
+	}
 
 	return nil
 }
@@ -143,20 +137,26 @@ func (di *dicon) registerFew(servicesInit map[string]interface{}, args ...interf
 			return err
 		}
 
+		var destroyer interface{}
+		if destroyerIndex != -1 {
+			destroyer = creationResults[destroyerIndex]
+		} else {
+			destroyer = nil
+		}
+
 		services = append(services, ta{
 			a,
 			creationResults[0].Type(),
 			creationResults[0],
-			creationResults[destroyerIndex],
+			destroyer,
 		})
 	}
 
 	for _, service := range services {
-		di.singletonesByAlias[service.a] = service.v
-		di.singletonesByType[service.t] = service.v
+		di.addSingleTone(service.a, service.v, service.t)
 		if service.d != nil {
 			destroyer := service.d.(reflect.Value)
-			di.destroyers = append(di.destroyers, destroyer)
+			di.addDestroyer(destroyer)
 		}
 	}
 
@@ -202,7 +202,7 @@ func (di *dicon) checkInDiconServices(
 	args ...interface{},
 ) (reflect.Value, bool, error) {
 	paramT := t.In(i)
-	temp, ok := di.temporalByType[paramT]
+	temp, ok := di.getTemporalByType(paramT)
 	if ok {
 		creationResults, err := di.createService(temp, argsIndex, args...)
 		if err != nil {
@@ -210,7 +210,7 @@ func (di *dicon) checkInDiconServices(
 		}
 		return creationResults[0], true, nil
 	}
-	singleTone, ok := di.singletonesByType[paramT]
+	singleTone, ok := di.getSingleToneByType(paramT)
 	if ok {
 		return singleTone, ok, nil
 	}
@@ -255,7 +255,7 @@ func (di *dicon) MustProcessSingletone(alias string, container interface{}) {
 }
 
 func (di *dicon) getSingletone(alias string) (reflect.Value, error) {
-	singleTone, ok := di.singletonesByAlias[alias]
+	singleTone, ok := di.getSingleToneByAlias(alias)
 	if ok {
 		return singleTone, nil
 	}
@@ -303,7 +303,7 @@ func (di *dicon) MustProcessTemporal(alias string, container interface{}, args .
 
 // Get return services typed with some interface or construct and return service, if it is temporal.
 func (di *dicon) getTemporal(alias string, args ...interface{}) (reflect.Value, error) {
-	tempConstructor, ok := di.temporalByAlias[alias]
+	tempConstructor, ok := di.getTemporalByAlias(alias)
 	if ok {
 		argsIndex := 0
 		creationResults, err := di.createService(tempConstructor, &argsIndex, args...)
@@ -317,7 +317,7 @@ func (di *dicon) getTemporal(alias string, args ...interface{}) (reflect.Value, 
 			)
 		}
 
-		err, errIndex := checkHasError(creationResults)
+		errIndex, err := checkHasError(creationResults)
 		if errIndex != -1 && err != nil {
 			return reflect.Value{}, err
 		}

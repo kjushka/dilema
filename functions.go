@@ -80,19 +80,19 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 		}
 
 		if tArg.Kind() == reflect.Interface {
-			container, ok := di.singletonesByType[tArg]
+			container, ok := di.getSingleToneByType(tArg)
 			if ok {
 				callArgs[i] = container
 				continue
 			}
-			constuctor, ok := di.temporalByType[tArg]
+			constuctor, ok := di.getTemporalByType(tArg)
 			if ok {
 				argsIndex := 0
 				creationResults, err := di.createService(constuctor, &argsIndex, args...)
 				if err != nil {
 					return nil, err
 				}
-				err, errIndex := checkHasError(creationResults)
+				errIndex, err := checkHasError(creationResults)
 				if errIndex != -1 && err != nil {
 					return nil, err
 				}
@@ -123,16 +123,14 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 
 		if tArg.Kind() == reflect.Ptr &&
 			tArg.Elem().Kind() == reflect.Struct {
-			zeroV := reflect.Zero(tArg.Elem())
-			created, ok := di.createCorrectInStruct(zeroV, args...)
+			created, ok := di.createCorrectInStruct(tArg.Elem(), args...)
 			if ok {
 				callArgs[i] = created
 				continue
 			}
 		}
 		if tArg.Kind() == reflect.Struct {
-			zeroV := reflect.Zero(tArg)
-			created, ok := di.createCorrectInStruct(zeroV, args...)
+			created, ok := di.createCorrectInStruct(tArg, args...)
 			if ok {
 				callArgs[i] = created.Elem()
 				continue
@@ -148,7 +146,7 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 }
 
 func (di *dicon) clean() {
-	for _, destroyer := range di.destroyers {
+	for _, destroyer := range di.getDestroyers() {
 		destroyer.Call(nil)
 	}
 }
@@ -179,34 +177,38 @@ func (cr callResults) process(values ...interface{}) error {
 
 	for _, val := range values {
 		vVal := reflect.ValueOf(val)
+		tVal := vVal.Type()
 		elem := vVal.Elem()
-		tVal := elem.Type()
+		elemType := elem.Type()
 
-		if val == nil || tVal.Kind() != reflect.Ptr {
+		if val == nil {
+			dilerr.NewTypeError("unexpected nil value")
+		}
+		if tVal.Kind() != reflect.Ptr {
 			return dilerr.NewTypeError("expected ptr values")
 		}
 		if !elem.CanSet() {
 			return dilerr.NewTypeError("agruments can't be setted")
 		}
-		if arr, ok := crMap[tVal]; ok {
+		if arr, ok := crMap[elemType]; ok {
 			elem.Set(arr[0])
 			if len(arr) == 1 {
-				delete(crMap, tVal)
+				delete(crMap, elemType)
 			} else {
-				crMap[tVal] = arr[1:]
+				crMap[elemType] = arr[1:]
 			}
 			continue
 		}
 
 		flag := false
 		for _, tt := range types {
-			if tVal.Kind() == reflect.Interface && tt.Implements(tVal) {
+			if elemType.Kind() == reflect.Interface && tt.Implements(elemType) {
 				if arr, ok := crMap[tt]; ok && len(arr) > 0 {
 					elem.Set(arr[0])
 					if len(arr) == 1 {
-						delete(crMap, tVal)
+						delete(crMap, elemType)
 					} else {
-						crMap[tVal] = arr[1:]
+						crMap[elemType] = arr[1:]
 					}
 					flag = true
 					break
