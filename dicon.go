@@ -35,12 +35,16 @@ func (di *dicon) MustRegisterTemporal(alias string, serviceInit interface{}) {
 // registerTemporal provides new service, which will be initialized when
 // you call Get method and be destroyed with GC after work will be done
 func (di *dicon) registerTemporal(alias string, serviceInit interface{}) error {
-	_, v, err := checkProvidedTypeIsCreator(serviceInit)
+	if _, ok := di.temporalByAlias[alias]; ok {
+		return dilerr.GetAlreadyExistError(alias)
+	}
+	t, v, err := checkProvidedTypeIsCreator(serviceInit)
 	if err != nil {
 		return err
 	}
 
 	di.temporalByAlias[alias] = v
+	di.temporalByType[t] = v
 	return nil
 }
 
@@ -71,7 +75,13 @@ func (di *dicon) registerSingleTone(
 	serviceInit interface{},
 	args ...interface{},
 ) error {
+	if _, ok := di.singletonesByAlias[alias]; ok {
+		return dilerr.GetAlreadyExistError(alias)
+	}
 	t, v, err := checkProvidedTypeIsCreator(serviceInit)
+	if err != nil {
+		return err
+	}
 
 	argsIndex := 0
 	creationResults, err := di.createService(v, &argsIndex, args...)

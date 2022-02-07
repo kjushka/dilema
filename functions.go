@@ -179,16 +179,17 @@ func (cr callResults) process(values ...interface{}) error {
 
 	for _, val := range values {
 		vVal := reflect.ValueOf(val)
+		elem := vVal.Elem()
+		tVal := elem.Type()
 
-		if val == nil || vVal.Type().Kind() != reflect.Ptr {
+		if val == nil || tVal.Kind() != reflect.Ptr {
 			return dilerr.NewTypeError("expected ptr values")
 		}
-		tVal := vVal.Elem().Type()
-		if !vVal.Elem().CanSet() {
+		if !elem.CanSet() {
 			return dilerr.NewTypeError("agruments can't be setted")
 		}
 		if arr, ok := crMap[tVal]; ok {
-			vVal.Elem().Set(arr[0])
+			elem.Set(arr[0])
 			if len(arr) == 1 {
 				delete(crMap, tVal)
 			} else {
@@ -201,7 +202,7 @@ func (cr callResults) process(values ...interface{}) error {
 		for _, tt := range types {
 			if tVal.Kind() == reflect.Interface && tt.Implements(tVal) {
 				if arr, ok := crMap[tt]; ok && len(arr) > 0 {
-					vVal.Elem().Set(arr[0])
+					elem.Set(arr[0])
 					if len(arr) == 1 {
 						delete(crMap, tVal)
 					} else {

@@ -1,5 +1,7 @@
 package dilerr
 
+import "fmt"
+
 // creationError for messaging about error in creation process
 type creationError struct {
 	text string
@@ -11,6 +13,14 @@ func NewCreationError(text string) error {
 
 func (ce *creationError) Error() string {
 	return ce.text
+}
+
+func GetAlreadyExistError(alias string) error {
+	return NewCreationError(
+		fmt.Sprintf(
+			"container with alias '%s' already exists", alias,
+		),
+	)
 }
 
 // typeError for messaging about error in type checking
