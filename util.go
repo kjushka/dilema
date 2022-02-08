@@ -31,23 +31,6 @@ func checkIsDestroyer(destroyer interface{}) error {
 	return nil
 }
 
-func checkProvidedTypeIsCorrectStruct(provided interface{}) (reflect.Type, reflect.Value, error) {
-	v := reflect.ValueOf(provided).Elem()
-	t := reflect.TypeOf(provided).Elem()
-
-	if t.Kind() != reflect.Struct {
-		return t, v, dilerr.NewTypeError("expected provided type is struct")
-	}
-
-	for i := 0; i < t.NumField(); i += 1 {
-		if t.Field(i).Type.Kind() != reflect.Interface || t.Field(i).Tag.Get("di") == "" {
-			return t, v, dilerr.NewTypeError("expected all fields are interfaces and fields have tags 'di'")
-		}
-	}
-
-	return t, v, nil
-}
-
 func (di *dicon) checkCreationResults(creationResults []reflect.Value) (destroyerIndex int, err error) {
 	if len(creationResults) > 1 {
 		errIndex, err := checkHasError(creationResults)
@@ -86,7 +69,7 @@ func checkHasError(creationResults []reflect.Value) (int, error) {
 	return -1, nil
 }
 
-func (di *dicon) createCorrectInStruct(sType reflect.Type, args ...interface{}) (reflect.Value, bool) {
+func (di *dicon) createInStruct(sType reflect.Type, args ...interface{}) (reflect.Value, bool) {
 	newValue := reflect.New(sType)
 	elem := newValue.Elem()
 

@@ -214,14 +214,14 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 
 		if tArg.Kind() == reflect.Ptr &&
 			tArg.Elem().Kind() == reflect.Struct {
-			created, ok := di.createCorrectInStruct(tArg.Elem(), args...)
+			created, ok := di.createInStruct(tArg.Elem(), args...)
 			if ok {
 				callArgs[i] = created
 				continue
 			}
 		}
 		if tArg.Kind() == reflect.Struct {
-			created, ok := di.createCorrectInStruct(tArg, args...)
+			created, ok := di.createInStruct(tArg, args...)
 			if ok {
 				callArgs[i] = created.Elem()
 				continue

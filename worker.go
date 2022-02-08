@@ -109,7 +109,7 @@ func (di *dicon) goDiconWorker() {
 				}
 			case recoverAndCleanOperation:
 				event := startEvent.event.(recoverAndCleanStartEvent)
-				cr, err := di.recover(event.function, event.args...)
+				cr, err := di.recoverAndClean(event.function, event.args...)
 				di.recoverAndCleanEndCh <- operationEndEvent{
 					operationIndex,
 					recoverAndCleanEndEvent{
