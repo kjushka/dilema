@@ -48,3 +48,15 @@ func NewGetError(text string) error {
 func (ge *getError) Error() string {
 	return ge.text
 }
+
+type threadError struct {
+	text string
+}
+
+func NewThreadError(text string) error {
+	return &threadError{text}
+}
+
+func (te *threadError) Error() string {
+	return te.text
+}

@@ -48,10 +48,9 @@ func checkProvidedTypeIsCorrectStruct(provided interface{}) (reflect.Type, refle
 	return t, v, nil
 }
 
-func (di *dicon) checkCreationResults(creationResults []reflect.Value) (int, error) {
-	var destroyerIndex int
+func (di *dicon) checkCreationResults(creationResults []reflect.Value) (destroyerIndex int, err error) {
 	if len(creationResults) > 1 {
-		err, errIndex := checkHasError(creationResults)
+		errIndex, err := checkHasError(creationResults)
 		if errIndex != -1 && err != nil {
 			return -1, err
 		}
@@ -75,46 +74,45 @@ func (di *dicon) checkCreationResults(creationResults []reflect.Value) (int, err
 	return destroyerIndex, nil
 }
 
-func checkHasError(creationResults []reflect.Value) (error, int) {
+func checkHasError(creationResults []reflect.Value) (int, error) {
 	for i, result := range creationResults {
 		if result.CanInterface() {
 			if err, ok := result.Interface().(error); ok {
-				return err, i
+				return i, err
 			}
 		}
 	}
 
-	return nil, -1
+	return -1, nil
 }
 
-func (di *dicon) createCorrectInStruct(s reflect.Value, args ...interface{}) (reflect.Value, bool) {
-	sType := s.Type()
+func (di *dicon) createCorrectInStruct(sType reflect.Type, args ...interface{}) (reflect.Value, bool) {
 	newValue := reflect.New(sType)
 	elem := newValue.Elem()
 
 	for i := 0; i < sType.NumField(); i++ {
 		if sType.Field(i).Type.Kind() != reflect.Interface {
-			return s, false
+			return newValue, false
 		}
 		if !elem.Field(i).CanSet() {
-			return s, false
+			return newValue, false
 		}
 		if alias := sType.Field(i).Tag.Get("dilema"); alias != "" {
-			container, ok := di.singletonesByAlias[alias]
+			container, ok := di.getSingleToneByAlias(alias)
 			if ok {
 				elem.Field(i).Set(container)
 				continue
 			}
-			constuctor, ok := di.temporalByAlias[alias]
+			constuctor, ok := di.getTemporalByAlias(alias)
 			if ok {
 				argsIndex := 0
 				creationResults, err := di.createService(constuctor, &argsIndex, args...)
 				if err != nil {
-					return s, false
+					return newValue, false
 				}
-				err, errIndex := checkHasError(creationResults)
+				errIndex, err := checkHasError(creationResults)
 				if errIndex != -1 && err != nil {
-					return s, false
+					return newValue, false
 				}
 
 				elem.Field(i).Set(creationResults[0])
@@ -122,21 +120,21 @@ func (di *dicon) createCorrectInStruct(s reflect.Value, args ...interface{}) (re
 			}
 		} else {
 			fieldType := sType.Field(i).Type
-			container, ok := di.singletonesByType[fieldType]
+			container, ok := di.getSingleToneByType(fieldType)
 			if ok {
 				elem.Field(i).Set(container)
 				continue
 			}
-			constuctor, ok := di.temporalByType[fieldType]
+			constuctor, ok := di.getTemporalByType(fieldType)
 			if ok {
 				argsIndex := 0
 				creationResults, err := di.createService(constuctor, &argsIndex, args...)
 				if err != nil {
-					return s, false
+					return newValue, false
 				}
-				err, errIndex := checkHasError(creationResults)
+				errIndex, err := checkHasError(creationResults)
 				if errIndex != -1 && err != nil {
-					return s, false
+					return newValue, false
 				}
 
 				elem.Field(i).Set(creationResults[0])
@@ -146,4 +144,18 @@ func (di *dicon) createCorrectInStruct(s reflect.Value, args ...interface{}) (re
 	}
 
 	return newValue, true
+}
+
+func processValue(val reflect.Value, container interface{}) error {
+	vCont := reflect.ValueOf(container)
+	tCont := vCont.Type()
+	elem := vCont.Elem()
+	if tCont.Kind() != reflect.Ptr {
+		return dilerr.NewTypeError("expected ptr values")
+	}
+	if !elem.CanSet() {
+		return dilerr.NewTypeError("agruments can't be setted")
+	}
+	elem.Set(val)
+	return nil
 }

@@ -2,8 +2,6 @@ package dilema
 
 import (
 	"context"
-	"reflect"
-	"sync"
 )
 
 type Dicon interface {
@@ -32,16 +30,26 @@ type Dicon interface {
 }
 
 func Init() Dicon {
-	return &dicon{
-		temporalByAlias:    make(map[string]reflect.Value),
-		temporalByType:     make(map[reflect.Type]reflect.Value),
-		singletonesByAlias: make(map[string]reflect.Value),
-		singletonesByType:  make(map[reflect.Type]reflect.Value),
+	di := &dicon{
+		temporalStore: newTemporalStore(),
+		singleToneStore: newSingleToneStore(),
+		destroyerStore: newDestroyerStore(),
 
-		destroyers: make([]reflect.Value, 0),
-		cache:      make(map[reflect.Type]reflect.Value),
+		queueStore: newQueueStore(),
 
-		mutex: &sync.Mutex{},
+		operationIndexCh: make(chan uint64),
+
+		operationStartCh: make(chan operationStartEvent),
+		operationEndChansStore: newOperationEndChansStore(),
+		queueCh: make(chan operationStartEvent),
+		exitCh: make(chan struct{}),
+
 		ctx: context.Background(),
 	}
+
+	go di.goOperationIndexProvider()
+	go di.goQueueWriter()
+	go di.goQueueReader()
+
+	return di
 }
