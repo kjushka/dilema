@@ -12,18 +12,48 @@ type dicon struct {
 	*singleToneStore
 	*destroyerStore
 
+	*queueStore
+
+	operationIndexCh chan uint64
+
+	operationStartCh chan operationStartEvent
+	*operationEndChansStore
+	queueCh chan operationStartEvent
+	exitCh  chan struct{}
+
 	ctx context.Context
 }
 
 func (di *dicon) RegisterTemporal(alias string, serviceInit interface{}) error {
-	return di.registerTemporal(alias, serviceInit)
+	return di.processRegisterTemporalEvent(alias, serviceInit)
 }
 
 func (di *dicon) MustRegisterTemporal(alias string, serviceInit interface{}) {
-	err := di.registerTemporal(alias, serviceInit)
+	err := di.processRegisterTemporalEvent(alias, serviceInit)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (di *dicon) processRegisterTemporalEvent(alias string, serviceInit interface{}) error {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          registerTemporalOperation,
+		event: registerTemporalStartEvent{
+			alias:       alias,
+			serviceInit: serviceInit,
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.registerEndCh {
+		if endEvent.operationIndex == operationIndex {
+			return endEvent.result.(registerEndEvent).err
+		}
+		di.registerEndCh <- endEvent
+	}
+	return dilerr.NewThreadError("register channel was closed")
 }
 
 // registerTemporal provides new service, which will be initialized when
@@ -46,7 +76,7 @@ func (di *dicon) RegisterSingletone(
 	serviceInit interface{},
 	args ...interface{},
 ) error {
-	return di.registerSingleTone(alias, serviceInit, args...)
+	return di.processRegisterSingleToneEvent(alias, serviceInit, args...)
 }
 
 func (di *dicon) MustRegisterSingletone(
@@ -54,10 +84,36 @@ func (di *dicon) MustRegisterSingletone(
 	serviceInit interface{},
 	args ...interface{},
 ) {
-	err := di.registerSingleTone(alias, serviceInit, args...)
+	err := di.processRegisterSingleToneEvent(alias, serviceInit, args...)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (di *dicon) processRegisterSingleToneEvent(
+	alias string,
+	serviceInit interface{},
+	args ...interface{},
+) error {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          registerSingleToneOperation,
+		event: registerSingleToneStartEvent{
+			alias:       alias,
+			serviceInit: serviceInit,
+			args:        args,
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.registerEndCh {
+		if endEvent.operationIndex == operationIndex {
+			return endEvent.result.(registerEndEvent).err
+		}
+		di.registerEndCh <- endEvent
+	}
+	return dilerr.NewThreadError("register channel was closed")
 }
 
 // registerSingleTone provides new singletone - constant service, which is being created only
@@ -95,14 +151,35 @@ func (di *dicon) registerSingleTone(
 }
 
 func (di *dicon) RegisterFew(servicesInit map[string]interface{}, args ...interface{}) error {
-	return di.registerFew(servicesInit, args...)
+	return di.processRegisterFewEvent(servicesInit, args...)
 }
 
 func (di *dicon) MustRegisterFew(servicesInit map[string]interface{}, args ...interface{}) {
-	err := di.registerFew(servicesInit, args...)
+	err := di.processRegisterFewEvent(servicesInit, args...)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (di *dicon) processRegisterFewEvent(servicesInit map[string]interface{}, args ...interface{}) error {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          registerFewOperation,
+		event: registerFewStartEvent{
+			servicesInit: servicesInit,
+			args:        args,
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.registerEndCh {
+		if endEvent.operationIndex == operationIndex {
+			return endEvent.result.(registerEndEvent).err
+		}
+		di.registerEndCh <- endEvent
+	}
+	return dilerr.NewThreadError("register channel was closed")
 }
 
 // RegisterFew provides some amount of services, which can be initialized without extra arguments.
@@ -218,7 +295,7 @@ func (di *dicon) checkInDiconServices(
 }
 
 func (di *dicon) GetSingletone(alias string) (interface{}, error) {
-	container, err := di.getSingletone(alias)
+	container, err := di.processGetSingleToneEvent(alias)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +303,7 @@ func (di *dicon) GetSingletone(alias string) (interface{}, error) {
 }
 
 func (di *dicon) MustGetSingletone(alias string) interface{} {
-	container, err := di.getSingletone(alias)
+	container, err := di.processGetSingleToneEvent(alias)
 	if err != nil {
 		panic(err)
 	}
@@ -234,24 +311,45 @@ func (di *dicon) MustGetSingletone(alias string) interface{} {
 }
 
 func (di *dicon) ProcessSingletone(alias string, container interface{}) error {
-	c, err := di.getSingletone(alias)
-	v := reflect.ValueOf(container)
-	if err == nil {
-		v.Set(c)
-	} else {
-		v.Set(reflect.Zero(v.Type()))
+	c, err := di.processGetSingleToneEvent(alias)
+	if err != nil {
+		return err
 	}
+	err = processValue(c, container)
 
 	return err
 }
 
 func (di *dicon) MustProcessSingletone(alias string, container interface{}) {
-	c, err := di.getSingletone(alias)
-	v := reflect.ValueOf(container)
+	c, err := di.processGetSingleToneEvent(alias)
 	if err != nil {
 		panic(err)
 	}
-	v.Set(c)
+	err = processValue(c, container)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (di *dicon) processGetSingleToneEvent(alias string) (reflect.Value, error) {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          getSingleToneOperation,
+		event: getSingleToneStartEvent{
+			alias:       alias,
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.getContainerEndCh {
+		if endEvent.operationIndex == operationIndex {
+			result := endEvent.result.(getContainerEndEvent)
+			return result.container, result.err
+		}
+		di.getContainerEndCh <- endEvent
+	}
+	return reflect.Value{}, dilerr.NewThreadError("get channel was closed")
 }
 
 func (di *dicon) getSingletone(alias string) (reflect.Value, error) {
@@ -265,7 +363,7 @@ func (di *dicon) getSingletone(alias string) (reflect.Value, error) {
 }
 
 func (di *dicon) GetTemporal(alias string, args ...interface{}) (interface{}, error) {
-	container, err := di.getTemporal(alias, args...)
+	container, err := di.processGetTemporalEvent(alias, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +371,7 @@ func (di *dicon) GetTemporal(alias string, args ...interface{}) (interface{}, er
 }
 
 func (di *dicon) MustGetTemporal(alias string, args ...interface{}) interface{} {
-	container, err := di.getTemporal(alias, args...)
+	container, err := di.processGetTemporalEvent(alias, args...)
 	if err != nil {
 		panic(err)
 	}
@@ -281,24 +379,46 @@ func (di *dicon) MustGetTemporal(alias string, args ...interface{}) interface{} 
 }
 
 func (di *dicon) ProcessTemporal(alias string, container interface{}, args ...interface{}) error {
-	c, err := di.getTemporal(alias, args...)
-	v := reflect.ValueOf(container)
-	if err == nil {
-		v.Set(c)
-	} else {
-		v.Set(reflect.Zero(v.Type()))
+	c, err := di.processGetTemporalEvent(alias, args...)
+	if err != nil {
+		return err
 	}
+	err = processValue(c, container)
 
 	return err
 }
 
 func (di *dicon) MustProcessTemporal(alias string, container interface{}, args ...interface{}) {
 	c, err := di.getTemporal(alias, args...)
-	v := reflect.ValueOf(container)
 	if err != nil {
 		panic(err)
 	}
-	v.Set(c)
+	err = processValue(c, container)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (di *dicon) processGetTemporalEvent(alias string, args ...interface{}) (reflect.Value, error) {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          getTemporalOperation,
+		event: getTemporalStartEvent{
+			alias:       alias,
+			args: args,
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.getContainerEndCh {
+		if endEvent.operationIndex == operationIndex {
+			result := endEvent.result.(getContainerEndEvent)
+			return result.container, result.err
+		}
+		di.getContainerEndCh <- endEvent
+	}
+	return reflect.Value{}, dilerr.NewThreadError("get channel was closed")
 }
 
 // Get return services typed with some interface or construct and return service, if it is temporal.

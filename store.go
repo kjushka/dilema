@@ -1,9 +1,61 @@
 package dilema
 
 import (
+	"container/list"
 	"reflect"
 	"sync"
 )
+
+type queueStore struct {
+	sync.Mutex
+	queue *list.List
+}
+
+func newQueueStore() *queueStore {
+	return &queueStore{
+		queue: list.New(),
+	}
+}
+
+func (qs *queueStore) pushEventBack(event operationStartEvent) {
+	qs.Lock()
+	defer qs.Unlock()
+
+	qs.queue.PushBack(event)
+}
+
+func (qs *queueStore) popEvent() operationStartEvent {
+	qs.Lock()
+	defer qs.Unlock()
+
+	el := qs.queue.Front()
+	return qs.queue.Remove(el).(operationStartEvent)
+}
+
+func (qs *queueStore) queueLen() int {
+	qs.Lock()
+	defer qs.Unlock()
+
+	return qs.queue.Len()
+}
+
+type operationEndChansStore struct {
+	registerEndCh        chan operationEndEvent
+	getContainerEndCh    chan operationEndEvent
+	runEndCh             chan operationEndEvent
+	recoverEndCh         chan operationEndEvent
+	recoverAndCleanEndCh chan operationEndEvent
+}
+
+func newOperationEndChansStore() *operationEndChansStore {
+	return &operationEndChansStore{
+		registerEndCh:        make(chan operationEndEvent),
+		getContainerEndCh:    make(chan operationEndEvent),
+		runEndCh:             make(chan operationEndEvent),
+		recoverEndCh:         make(chan operationEndEvent),
+		recoverAndCleanEndCh: make(chan operationEndEvent),
+	}
+}
 
 type temporalStore struct {
 	sync.RWMutex
@@ -40,7 +92,7 @@ func (ts *temporalStore) getTemporalByType(t reflect.Type) (reflect.Value, bool)
 
 	temporal, ok := ts.temporalByType[t]
 	return temporal, ok
-} 
+}
 
 type singleToneStore struct {
 	sync.RWMutex
@@ -77,7 +129,7 @@ func (ss *singleToneStore) getSingleToneByType(t reflect.Type) (reflect.Value, b
 
 	temporal, ok := ss.singleTonesByType[t]
 	return temporal, ok
-} 
+}
 
 type destroyerStore struct {
 	sync.Mutex

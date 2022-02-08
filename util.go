@@ -145,3 +145,17 @@ func (di *dicon) createCorrectInStruct(sType reflect.Type, args ...interface{}) 
 
 	return newValue, true
 }
+
+func processValue(val reflect.Value, container interface{}) error {
+	vCont := reflect.ValueOf(container)
+	tCont := vCont.Type()
+	elem := vCont.Elem()
+	if tCont.Kind() != reflect.Ptr {
+		return dilerr.NewTypeError("expected ptr values")
+	}
+	if !elem.CanSet() {
+		return dilerr.NewTypeError("agruments can't be setted")
+	}
+	elem.Set(val)
+	return nil
+}

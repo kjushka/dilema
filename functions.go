@@ -13,30 +13,116 @@ type CallResults interface {
 }
 
 func (di *dicon) Run(function interface{}, args ...interface{}) (CallResults, error) {
-	return di.run(function, args...)
+	return di.processRunEvent(function, args...)
 }
 
 func (di *dicon) MustRun(function interface{}, args ...interface{}) CallResults {
-	res, err := di.run(function, args...)
+	res, err := di.processRunEvent(function, args...)
 	if err != nil {
 		panic(err)
 	}
 	return res
 }
 
-func (di *dicon) Recover(function interface{}, args ...interface{}) (cr CallResults, err error) {
+func (di *dicon) processRunEvent(function interface{}, args ...interface{}) (CallResults, error) {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          runOperation,
+		event: runStartEvent{
+			funcStartEvent: funcStartEvent{
+				function: function,
+				args:     args,
+			},
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.runEndCh {
+		if endEvent.operationIndex == operationIndex {
+			result := endEvent.result.(runEndEvent)
+			return result.cr, result.err
+		}
+		di.runEndCh <- endEvent
+	}
+	return nil, dilerr.NewThreadError("run channel was closed")
+}
+
+func (di *dicon) Recover(function interface{}, args ...interface{}) (CallResults, error) {
+	return di.processRecoverEvent(function, args...)
+}
+
+func (di *dicon) processRecoverEvent(function interface{}, args ...interface{}) (CallResults, error) {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          recoverOperation,
+		event: recoverStartEvent{
+			funcStartEvent: funcStartEvent{
+				function: function,
+				args:     args,
+			},
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.recoverEndCh {
+		if endEvent.operationIndex == operationIndex {
+			result := endEvent.result.(recoverEndEvent)
+			return result.cr, result.err
+		}
+		di.recoverEndCh <- endEvent
+	}
+	return nil, dilerr.NewThreadError("recover channel was closed")
+}
+
+func (di *dicon) recover(function interface{}, args ...interface{}) (cr CallResults, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			cr, err = nil, r.(error)
 		}
 	}()
 
-	cr, err = di.MustRun(function, args...), nil
+	cr, err = di.run(function, args...)
+	if err != nil {
+		panic(err)
+	}
 
 	return
 }
 
-func (di *dicon) RecoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error) {
+func (di *dicon) RecoverAndClean(function interface{}, args ...interface{}) (CallResults, error) {
+	return di.processRecoverAndCleanEvent(function, args...)
+}
+
+func (di *dicon) processRecoverAndCleanEvent(
+	function interface{},
+	args ...interface{},
+) (CallResults, error) {
+	operationIndex := <-di.operationIndexCh
+	event := operationStartEvent{
+		operationIndex: operationIndex,
+		oType:          recoverAndCleanOperation,
+		event: recoverAndCleanStartEvent{
+			funcStartEvent: funcStartEvent{
+				function: function,
+				args:     args,
+			},
+		},
+	}
+	di.queueCh <- event
+
+	for endEvent := range di.recoverAndCleanEndCh {
+		if endEvent.operationIndex == operationIndex {
+			result := endEvent.result.(recoverAndCleanEndEvent)
+			return result.cr, result.err
+		}
+		di.recoverAndCleanEndCh <- endEvent
+	}
+	return nil, dilerr.NewThreadError("recover_and_clean channel was closed")
+}
+
+func (di *dicon) recoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			di.clean()
@@ -44,7 +130,12 @@ func (di *dicon) RecoverAndClean(function interface{}, args ...interface{}) (cr 
 		}
 	}()
 
-	return di.MustRun(function, args...), nil
+	cr, err = di.run(function, args...)
+	if err != nil {
+		panic(err)
+	}
+
+	return
 }
 
 func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) {

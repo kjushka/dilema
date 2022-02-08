@@ -51,11 +51,11 @@ func main() {
 		printer.(action.SomePrinter).PrintSome()
 
 		var file io.Reader
-		file, err = os.Open("./text.txt")
+		file, err = os.Open("./example/cmd/main/text.txt")
 		if err != nil {
 			panic(err)
 		}
-		res, err := diThird.Recover(someFunc, file, 1)
+		res, err := diThird.RecoverAndClean(someFunc, file, 1)
 		if err != nil {
 			log.Println(err.Error())
 			panic(err)
@@ -76,7 +76,7 @@ func someFunc(num int, diStruct *struct {
 	log.Println("inside someFunc:", "num:", num)
 	log.Println("inside someFunc:", "sum:", diStruct.Action.Sum())
 	diStruct.Printer.PrintSome()
-	var buf []byte 
+	var buf []byte
 	n, err := r.Read(buf)
 	if err != nil && err != io.EOF {
 		panic(err)
