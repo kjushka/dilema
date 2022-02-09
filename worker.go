@@ -13,8 +13,6 @@ func (di *dicon) goQueueWriter() {
 		select {
 		case event := <-di.queueCh:
 			di.pushEventBack(event)
-		case <-di.exitCh:
-			return
 		}
 	}
 }
