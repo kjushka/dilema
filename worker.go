@@ -9,11 +9,8 @@ func (di *dicon) goOperationIndexProvider() {
 }
 
 func (di *dicon) goQueueWriter() {
-	for {
-		select {
-		case event := <-di.queueCh:
-			di.pushEventBack(event)
-		}
+	for event := range di.queueCh {
+		di.pushEventBack(event)
 	}
 }
 
