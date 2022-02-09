@@ -37,17 +37,13 @@ func Init() Dicon {
 
 		queueStore: newQueueStore(),
 
-		operationIndexCh: make(chan uint64),
-
 		operationStartCh: make(chan operationStartEvent),
-		operationEndChansStore: newOperationEndChansStore(),
 		queueCh: make(chan operationStartEvent),
 		exitCh: make(chan struct{}),
 
 		ctx: context.Background(),
 	}
 
-	go di.goOperationIndexProvider()
 	go di.goQueueWriter()
 	go di.goQueueReader()
 

@@ -39,24 +39,6 @@ func (qs *queueStore) queueLen() int {
 	return qs.queue.Len()
 }
 
-type operationEndChansStore struct {
-	registerEndCh        chan operationEndEvent
-	getContainerEndCh    chan operationEndEvent
-	runEndCh             chan operationEndEvent
-	recoverEndCh         chan operationEndEvent
-	recoverAndCleanEndCh chan operationEndEvent
-}
-
-func newOperationEndChansStore() *operationEndChansStore {
-	return &operationEndChansStore{
-		registerEndCh:        make(chan operationEndEvent),
-		getContainerEndCh:    make(chan operationEndEvent),
-		runEndCh:             make(chan operationEndEvent),
-		recoverEndCh:         make(chan operationEndEvent),
-		recoverAndCleanEndCh: make(chan operationEndEvent),
-	}
-}
-
 type temporalStore struct {
 	sync.RWMutex
 	temporalByAlias map[string]reflect.Value

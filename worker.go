@@ -1,13 +1,5 @@
 package dilema
 
-func (di *dicon) goOperationIndexProvider() {
-	var operationIndex uint64 = 0
-	for {
-		di.operationIndexCh <- operationIndex
-		operationIndex++
-	}
-}
-
 func (di *dicon) goQueueWriter() {
 	for event := range di.queueCh {
 		di.pushEventBack(event)
@@ -35,34 +27,31 @@ func (di *dicon) goDiconWorker() {
 	for {
 		select {
 		case startEvent := <-di.operationStartCh:
-			operationIndex := startEvent.operationIndex
+			operationCh := startEvent.operationCh
+			var result operationEndEvent
 			switch startEvent.oType {
 			case registerTemporalOperation:
 				event := startEvent.event.(registerTemporalStartEvent)
 				err := di.registerTemporal(event.alias, event.serviceInit)
-				di.registerEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					registerEndEvent{err: err},
 				}
 			case registerSingleToneOperation:
 				event := startEvent.event.(registerSingleToneStartEvent)
 				err := di.registerSingleTone(event.alias, event.serviceInit, event.args...)
-				di.registerEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					registerEndEvent{err: err},
 				}
 			case registerFewOperation:
 				event := startEvent.event.(registerFewStartEvent)
 				err := di.registerFew(event.servicesInit, event.args...)
-				di.registerEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					registerEndEvent{err: err},
 				}
 			case getSingleToneOperation:
 				event := startEvent.event.(getSingleToneStartEvent)
 				c, err := di.getSingletone(event.alias)
-				di.getContainerEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					getContainerEndEvent{
 						container: c,
 						err:       err,
@@ -71,8 +60,7 @@ func (di *dicon) goDiconWorker() {
 			case getTemporalOperation:
 				event := startEvent.event.(getTemporalStartEvent)
 				c, err := di.getTemporal(event.alias, event.args...)
-				di.getContainerEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					getContainerEndEvent{
 						container: c,
 						err:       err,
@@ -81,8 +69,7 @@ func (di *dicon) goDiconWorker() {
 			case runOperation:
 				event := startEvent.event.(runStartEvent)
 				cr, err := di.run(event.function, event.args...)
-				di.runEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					runEndEvent{
 						funcEndEvent{
 							cr:  cr,
@@ -93,8 +80,7 @@ func (di *dicon) goDiconWorker() {
 			case recoverOperation:
 				event := startEvent.event.(recoverStartEvent)
 				cr, err := di.recover(event.function, event.args...)
-				di.recoverEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					recoverEndEvent{
 						funcEndEvent{
 							cr:  cr,
@@ -105,8 +91,7 @@ func (di *dicon) goDiconWorker() {
 			case recoverAndCleanOperation:
 				event := startEvent.event.(recoverAndCleanStartEvent)
 				cr, err := di.recoverAndClean(event.function, event.args...)
-				di.recoverAndCleanEndCh <- operationEndEvent{
-					operationIndex,
+				result = operationEndEvent{
 					recoverAndCleanEndEvent{
 						funcEndEvent{
 							cr:  cr,
@@ -115,6 +100,8 @@ func (di *dicon) goDiconWorker() {
 					},
 				}
 			}
+
+			operationCh <- result
 		case <-di.exitCh:
 			return
 		}

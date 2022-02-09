@@ -16,14 +16,13 @@ const (
 )
 
 type operationStartEvent struct {
-	oType          operationType
-	operationIndex uint64
-	event          interface{}
+	operationCh chan operationEndEvent
+	oType       int
+	event       interface{}
 }
 
 type operationEndEvent struct {
-	operationIndex uint64
-	result         interface{}
+	result interface{}
 }
 
 type registerTemporalStartEvent struct {
