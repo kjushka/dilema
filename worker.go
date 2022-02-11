@@ -30,9 +30,9 @@ func (di *dicon) goDiconWorker() {
 			operationCh := startEvent.operationCh
 			var result operationEndEvent
 			switch startEvent.oType {
-			case registerTemporalOperation:
-				event := startEvent.event.(registerTemporalStartEvent)
-				err := di.registerTemporal(event.alias, event.serviceInit)
+			case registerTemporaryOperation:
+				event := startEvent.event.(registerTemporaryStartEvent)
+				err := di.registerTemporary(event.alias, event.serviceInit)
 				result = operationEndEvent{
 					registerEndEvent{err: err},
 				}
@@ -57,9 +57,9 @@ func (di *dicon) goDiconWorker() {
 						err:       err,
 					},
 				}
-			case getTemporalOperation:
-				event := startEvent.event.(getTemporalStartEvent)
-				c, err := di.getTemporal(event.alias, event.args...)
+			case getTemporaryOperation:
+				event := startEvent.event.(getTemporaryStartEvent)
+				c, err := di.getTemporary(event.alias, event.args...)
 				result = operationEndEvent{
 					getContainerEndEvent{
 						container: c,

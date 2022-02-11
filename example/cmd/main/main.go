@@ -13,12 +13,12 @@ import (
 func main() {
 	{
 		diFirst := dilema.Init()
-		err := diFirst.RegisterTemporal("action", service.NewSomeActionByWithParams)
+		err := diFirst.RegisterTemporary("action", service.NewSomeActionByWithParams)
 		if err != nil {
 			panic(err)
 		}
 
-		container, err := diFirst.GetTemporal("action", 1, 3)
+		container, err := diFirst.GetTemporary("action", 1, 3)
 		if err != nil {
 			panic(err)
 		}
@@ -27,8 +27,8 @@ func main() {
 	}
 	{
 		diSecond := dilema.Init()
-		diSecond.MustRegisterTemporal("action", service.NewSomeActionByWithParams)
-		sum := diSecond.MustGetTemporal("action", 1, 3).(action.SomeAction).Sum()
+		diSecond.MustRegisterTemporary("action", service.NewSomeActionByWithParams)
+		sum := diSecond.MustGetTemporary("action", 1, 3).(action.SomeAction).Sum()
 		log.Println(sum)
 	}
 	{

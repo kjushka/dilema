@@ -5,10 +5,10 @@ import "reflect"
 type operationType int
 
 const (
-	registerTemporalOperation = iota
+	registerTemporaryOperation = iota
 	registerSingleToneOperation
 	registerFewOperation
-	getTemporalOperation
+	getTemporaryOperation
 	getSingleToneOperation
 	runOperation
 	recoverOperation
@@ -25,7 +25,7 @@ type operationEndEvent struct {
 	result interface{}
 }
 
-type registerTemporalStartEvent struct {
+type registerTemporaryStartEvent struct {
 	alias       string
 	serviceInit interface{}
 }
@@ -45,7 +45,7 @@ type registerEndEvent struct {
 	err error
 }
 
-type getTemporalStartEvent struct {
+type getTemporaryStartEvent struct {
 	alias string
 	args  []interface{}
 }

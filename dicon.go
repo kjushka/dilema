@@ -8,7 +8,7 @@ import (
 )
 
 type dicon struct {
-	*temporalStore
+	*temporaryStore
 	*singleToneStore
 	*destroyerStore
 
@@ -21,23 +21,23 @@ type dicon struct {
 	ctx context.Context
 }
 
-func (di *dicon) RegisterTemporal(alias string, serviceInit interface{}) error {
-	return di.processRegisterTemporalEvent(alias, serviceInit)
+func (di *dicon) RegisterTemporary(alias string, serviceInit interface{}) error {
+	return di.processRegisterTemporaryEvent(alias, serviceInit)
 }
 
-func (di *dicon) MustRegisterTemporal(alias string, serviceInit interface{}) {
-	err := di.processRegisterTemporalEvent(alias, serviceInit)
+func (di *dicon) MustRegisterTemporary(alias string, serviceInit interface{}) {
+	err := di.processRegisterTemporaryEvent(alias, serviceInit)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (di *dicon) processRegisterTemporalEvent(alias string, serviceInit interface{}) error {
+func (di *dicon) processRegisterTemporaryEvent(alias string, serviceInit interface{}) error {
 	operationCh := make(chan operationEndEvent)
 	startEvent := operationStartEvent{
 		operationCh: operationCh,
-		oType:       registerTemporalOperation,
-		event: registerTemporalStartEvent{
+		oType:       registerTemporaryOperation,
+		event: registerTemporaryStartEvent{
 			alias:       alias,
 			serviceInit: serviceInit,
 		},
@@ -50,10 +50,10 @@ func (di *dicon) processRegisterTemporalEvent(alias string, serviceInit interfac
 	return endEvent.result.(registerEndEvent).err
 }
 
-// registerTemporal provides new service, which will be initialized when
+// registerTemporary provides new service, which will be initialized when
 // you call Get method and be destroyed with GC after work will be done
-func (di *dicon) registerTemporal(alias string, serviceInit interface{}) error {
-	if _, ok := di.getTemporalByAlias(alias); ok {
+func (di *dicon) registerTemporary(alias string, serviceInit interface{}) error {
+	if _, ok := di.getTemporaryByAlias(alias); ok {
 		return dilerr.GetAlreadyExistError(alias)
 	}
 	t, v, err := checkProvidedTypeIsCreator(serviceInit)
@@ -61,7 +61,7 @@ func (di *dicon) registerTemporal(alias string, serviceInit interface{}) error {
 		return err
 	}
 
-	di.addTemporal(alias, v, t)
+	di.addTemporary(alias, v, t)
 	return nil
 }
 
@@ -267,7 +267,7 @@ func (di *dicon) checkInDiconServices(
 	args ...interface{},
 ) (reflect.Value, bool, error) {
 	paramT := t.In(i)
-	temp, ok := di.getTemporalByType(paramT)
+	temp, ok := di.getTemporaryByType(paramT)
 	if ok {
 		creationResults, err := di.createService(temp, argsIndex, args...)
 		if err != nil {
@@ -347,24 +347,24 @@ func (di *dicon) getSingletone(alias string) (reflect.Value, error) {
 	)
 }
 
-func (di *dicon) GetTemporal(alias string, args ...interface{}) (interface{}, error) {
-	container, err := di.processGetTemporalEvent(alias, args...)
+func (di *dicon) GetTemporary(alias string, args ...interface{}) (interface{}, error) {
+	container, err := di.processGetTemporaryEvent(alias, args...)
 	if err != nil {
 		return nil, err
 	}
 	return container.Interface(), nil
 }
 
-func (di *dicon) MustGetTemporal(alias string, args ...interface{}) interface{} {
-	container, err := di.processGetTemporalEvent(alias, args...)
+func (di *dicon) MustGetTemporary(alias string, args ...interface{}) interface{} {
+	container, err := di.processGetTemporaryEvent(alias, args...)
 	if err != nil {
 		panic(err)
 	}
 	return container.Interface()
 }
 
-func (di *dicon) ProcessTemporal(alias string, container interface{}, args ...interface{}) error {
-	c, err := di.processGetTemporalEvent(alias, args...)
+func (di *dicon) ProcessTemporary(alias string, container interface{}, args ...interface{}) error {
+	c, err := di.processGetTemporaryEvent(alias, args...)
 	if err != nil {
 		return err
 	}
@@ -373,8 +373,8 @@ func (di *dicon) ProcessTemporal(alias string, container interface{}, args ...in
 	return err
 }
 
-func (di *dicon) MustProcessTemporal(alias string, container interface{}, args ...interface{}) {
-	c, err := di.getTemporal(alias, args...)
+func (di *dicon) MustProcessTemporary(alias string, container interface{}, args ...interface{}) {
+	c, err := di.getTemporary(alias, args...)
 	if err != nil {
 		panic(err)
 	}
@@ -384,12 +384,12 @@ func (di *dicon) MustProcessTemporal(alias string, container interface{}, args .
 	}
 }
 
-func (di *dicon) processGetTemporalEvent(alias string, args ...interface{}) (reflect.Value, error) {
+func (di *dicon) processGetTemporaryEvent(alias string, args ...interface{}) (reflect.Value, error) {
 	operationCh := make(chan operationEndEvent)
 	event := operationStartEvent{
 		operationCh: operationCh,
-		oType:       getTemporalOperation,
-		event: getTemporalStartEvent{
+		oType:       getTemporaryOperation,
+		event: getTemporaryStartEvent{
 			alias: alias,
 			args:  args,
 		},
@@ -403,9 +403,9 @@ func (di *dicon) processGetTemporalEvent(alias string, args ...interface{}) (ref
 	return result.container, result.err
 }
 
-// Get return services typed with some interface or construct and return service, if it is temporal.
-func (di *dicon) getTemporal(alias string, args ...interface{}) (reflect.Value, error) {
-	tempConstructor, ok := di.getTemporalByAlias(alias)
+// Get return services typed with some interface or construct and return service, if it is temporary.
+func (di *dicon) getTemporary(alias string, args ...interface{}) (reflect.Value, error) {
+	tempConstructor, ok := di.getTemporaryByAlias(alias)
 	if ok {
 		argsIndex := 0
 		creationResults, err := di.createService(tempConstructor, &argsIndex, args...)
@@ -415,7 +415,7 @@ func (di *dicon) getTemporal(alias string, args ...interface{}) (reflect.Value, 
 
 		if len(creationResults) > 2 {
 			return reflect.Value{}, dilerr.NewGetError(
-				"temporal service creator returns more that 2 results",
+				"temporary service creator returns more that 2 results",
 			)
 		}
 
@@ -428,6 +428,6 @@ func (di *dicon) getTemporal(alias string, args ...interface{}) (reflect.Value, 
 	}
 
 	return reflect.Value{}, dilerr.NewGetError(
-		fmt.Sprintf("There is no temporal service with alias: %s", alias),
+		fmt.Sprintf("There is no temporary service with alias: %s", alias),
 	)
 }

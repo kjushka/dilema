@@ -167,7 +167,7 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 				callArgs[i] = container
 				continue
 			}
-			constuctor, ok := di.getTemporalByType(tArg)
+			constuctor, ok := di.getTemporaryByType(tArg)
 			if ok {
 				argsIndex := 0
 				creationResults, err := di.createService(constuctor, &argsIndex, args...)

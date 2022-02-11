@@ -86,7 +86,7 @@ func (di *dicon) createInStruct(sType reflect.Type, args ...interface{}) (reflec
 				elem.Field(i).Set(container)
 				continue
 			}
-			constuctor, ok := di.getTemporalByAlias(alias)
+			constuctor, ok := di.getTemporaryByAlias(alias)
 			if ok {
 				argsIndex := 0
 				creationResults, err := di.createService(constuctor, &argsIndex, args...)
@@ -108,7 +108,7 @@ func (di *dicon) createInStruct(sType reflect.Type, args ...interface{}) (reflec
 				elem.Field(i).Set(container)
 				continue
 			}
-			constuctor, ok := di.getTemporalByType(fieldType)
+			constuctor, ok := di.getTemporaryByType(fieldType)
 			if ok {
 				argsIndex := 0
 				creationResults, err := di.createService(constuctor, &argsIndex, args...)

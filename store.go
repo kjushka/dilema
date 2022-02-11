@@ -39,41 +39,41 @@ func (qs *queueStore) queueLen() int {
 	return qs.queue.Len()
 }
 
-type temporalStore struct {
+type temporaryStore struct {
 	sync.RWMutex
-	temporalByAlias map[string]reflect.Value
-	temporalByType  map[reflect.Type]reflect.Value
+	temporaryByAlias map[string]reflect.Value
+	temporaryByType  map[reflect.Type]reflect.Value
 }
 
-func newTemporalStore() *temporalStore {
-	return &temporalStore{
-		temporalByAlias: make(map[string]reflect.Value),
-		temporalByType:  make(map[reflect.Type]reflect.Value),
+func newTemporaryStore() *temporaryStore {
+	return &temporaryStore{
+		temporaryByAlias: make(map[string]reflect.Value),
+		temporaryByType:  make(map[reflect.Type]reflect.Value),
 	}
 }
 
-func (ts *temporalStore) addTemporal(alias string, v reflect.Value, t reflect.Type) {
+func (ts *temporaryStore) addTemporary(alias string, v reflect.Value, t reflect.Type) {
 	ts.Lock()
 	defer ts.Unlock()
 
-	ts.temporalByAlias[alias] = v
-	ts.temporalByType[t] = v
+	ts.temporaryByAlias[alias] = v
+	ts.temporaryByType[t] = v
 }
 
-func (ts *temporalStore) getTemporalByAlias(alias string) (reflect.Value, bool) {
+func (ts *temporaryStore) getTemporaryByAlias(alias string) (reflect.Value, bool) {
 	ts.RLock()
 	defer ts.RUnlock()
 
-	temporal, ok := ts.temporalByAlias[alias]
-	return temporal, ok
+	temporary, ok := ts.temporaryByAlias[alias]
+	return temporary, ok
 }
 
-func (ts *temporalStore) getTemporalByType(t reflect.Type) (reflect.Value, bool) {
+func (ts *temporaryStore) getTemporaryByType(t reflect.Type) (reflect.Value, bool) {
 	ts.RLock()
 	defer ts.RUnlock()
 
-	temporal, ok := ts.temporalByType[t]
-	return temporal, ok
+	temporary, ok := ts.temporaryByType[t]
+	return temporary, ok
 }
 
 type singleToneStore struct {
@@ -101,16 +101,16 @@ func (ss *singleToneStore) getSingleToneByAlias(alias string) (reflect.Value, bo
 	ss.RLock()
 	defer ss.RUnlock()
 
-	temporal, ok := ss.singleTonesByAlias[alias]
-	return temporal, ok
+	singletone, ok := ss.singleTonesByAlias[alias]
+	return singletone, ok
 }
 
 func (ss *singleToneStore) getSingleToneByType(t reflect.Type) (reflect.Value, bool) {
 	ss.RLock()
 	defer ss.RUnlock()
 
-	temporal, ok := ss.singleTonesByType[t]
-	return temporal, ok
+	singletone, ok := ss.singleTonesByType[t]
+	return singletone, ok
 }
 
 type destroyerStore struct {
