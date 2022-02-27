@@ -49,14 +49,14 @@ func (ge *getError) Error() string {
 	return ge.text
 }
 
-type threadError struct {
+type processError struct {
 	text string
 }
 
-func NewThreadError(text string) error {
-	return &threadError{text}
+func NewProcessError(text string) error {
+	return &processError{text}
 }
 
-func (te *threadError) Error() string {
-	return te.text
+func (pe *processError) Error() string {
+	return pe.text
 }

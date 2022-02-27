@@ -9,8 +9,6 @@ type Dicon interface {
 	MustRegisterTemporary(alias string, serviceInit interface{})
 	RegisterSingletone(alias string, serviceInit interface{}, args ...interface{}) error
 	MustRegisterSingletone(alias string, serviceInit interface{}, args ...interface{})
-	RegisterFew(servicesInit map[string]interface{}, args ...interface{}) error
-	MustRegisterFew(servicesInit map[string]interface{}, args ...interface{})
 	GetSingletone(alias string) (interface{}, error)
 	MustGetSingletone(alias string) interface{}
 	ProcessSingletone(alias string, container interface{}) error
@@ -31,21 +29,12 @@ type Dicon interface {
 
 func Init() Dicon {
 	di := &dicon{
-		temporaryStore: newTemporaryStore(),
-		singleToneStore: newSingleToneStore(),
-		destroyerStore: newDestroyerStore(),
-
-		queueStore: newQueueStore(),
-
-		operationStartCh: make(chan operationStartEvent),
-		queueCh: make(chan operationStartEvent),
-		exitCh: make(chan struct{}),
+		temporaryStore:    newTemporaryStore(),
+		singleToneStore:   newSingleToneStore(),
+		destroyablesStore: newDestroyablesStore(),
 
 		ctx: context.Background(),
 	}
-
-	go di.goQueueWriter()
-	go di.goQueueReader()
 
 	return di
 }

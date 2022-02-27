@@ -13,63 +13,29 @@ func checkProvidedTypeIsCreator(provided interface{}) (reflect.Type, reflect.Val
 		return nil, reflect.Value{},
 			dilerr.NewTypeError("expected provided type is func")
 	}
-	if t.NumOut() < 1 && t.Out(0).Kind() != reflect.Interface {
+	if t.NumOut() < 1 && t.NumOut() > 2 && t.Out(0).Kind() != reflect.Interface {
 		return t, v,
-			dilerr.NewTypeError("expected provided return only one interface typed value")
+			dilerr.NewTypeError("expected provided return one or two interface typed value")
 	}
+	if t.NumOut() == 2 && t.Out(1).String() != "error" {
+		return t, v,
+			dilerr.NewTypeError("expected provided return second value interface as error")
+	}
+
 	return t, v, nil
 }
 
-func checkIsDestroyer(destroyer interface{}) error {
-	dType := reflect.TypeOf(destroyer)
-	if dType.Kind() != reflect.Func {
-		return dilerr.NewTypeError("Unexpected destroyer type")
-	}
-	if dType.NumIn() != 0 {
-		return dilerr.NewTypeError("Destroyer must have no in arguments")
-	}
-	return nil
-}
-
-func (di *dicon) checkCreationResults(creationResults []reflect.Value) (destroyerIndex int, err error) {
-	if len(creationResults) > 1 {
-		errIndex, err := checkHasError(creationResults)
-		if errIndex != -1 && err != nil {
-			return -1, err
-		}
-		if len(creationResults) == 2 && errIndex == -1 {
-			err = checkIsDestroyer(creationResults[1])
-			if err != nil {
-				return -1, err
-			}
-			destroyerIndex = 1
-		} else if len(creationResults) == 3 && errIndex != -1 {
-			dIndex := 3 - errIndex
-			err = checkIsDestroyer(creationResults[dIndex])
-			if err != nil {
-				return -1, err
-			}
-			destroyerIndex = dIndex
-		} else {
-			return -1, dilerr.NewTypeError("Creator have too much outs")
-		}
-	}
-	return destroyerIndex, nil
-}
-
-func checkHasError(creationResults []reflect.Value) (int, error) {
-	for i, result := range creationResults {
-		if result.CanInterface() {
-			if err, ok := result.Interface().(error); ok {
-				return i, err
-			}
+func checkIsError(possibleError reflect.Value) (error, bool) {
+	if possibleError.CanInterface() {
+		if err, ok := possibleError.Interface().(error); ok {
+			return err, ok
 		}
 	}
 
-	return -1, nil
+	return nil, false
 }
 
-func (di *dicon) createInStruct(sType reflect.Type, args ...interface{}) (reflect.Value, bool) {
+func (di *dicon) createInStruct(sType reflect.Type) (reflect.Value, bool) {
 	newValue := reflect.New(sType)
 	elem := newValue.Elem()
 
@@ -86,41 +52,11 @@ func (di *dicon) createInStruct(sType reflect.Type, args ...interface{}) (reflec
 				elem.Field(i).Set(container)
 				continue
 			}
-			constuctor, ok := di.getTemporaryByAlias(alias)
-			if ok {
-				argsIndex := 0
-				creationResults, err := di.createService(constuctor, &argsIndex, args...)
-				if err != nil {
-					return newValue, false
-				}
-				errIndex, err := checkHasError(creationResults)
-				if errIndex != -1 && err != nil {
-					return newValue, false
-				}
-
-				elem.Field(i).Set(creationResults[0])
-				continue
-			}
 		} else {
 			fieldType := sType.Field(i).Type
 			container, ok := di.getSingleToneByType(fieldType)
 			if ok {
 				elem.Field(i).Set(container)
-				continue
-			}
-			constuctor, ok := di.getTemporaryByType(fieldType)
-			if ok {
-				argsIndex := 0
-				creationResults, err := di.createService(constuctor, &argsIndex, args...)
-				if err != nil {
-					return newValue, false
-				}
-				errIndex, err := checkHasError(creationResults)
-				if errIndex != -1 && err != nil {
-					return newValue, false
-				}
-
-				elem.Field(i).Set(creationResults[0])
 				continue
 			}
 		}
@@ -134,10 +70,10 @@ func processValue(val reflect.Value, container interface{}) error {
 	tCont := vCont.Type()
 	elem := vCont.Elem()
 	if tCont.Kind() != reflect.Ptr {
-		return dilerr.NewTypeError("expected ptr values")
+		return dilerr.NewProcessError("expected ptr values")
 	}
 	if !elem.CanSet() {
-		return dilerr.NewTypeError("agruments can't be setted")
+		return dilerr.NewProcessError("agruments can't be setted")
 	}
 	elem.Set(val)
 	return nil

@@ -2,6 +2,7 @@ package service
 
 import (
 	"dilema/example/internal/action"
+	"log"
 	"math/rand"
 )
 
@@ -27,4 +28,9 @@ func NewSomeActionWithoutParams() action.SomeAction {
 
 func (ss *someServiceWithoutParams) Sum() int {
 	return ss.a + ss.b
+}
+
+func (ss *someServiceWithoutParams) Destroy() error {
+	log.Println("SomeAction Destroyed")
+	return nil
 }
