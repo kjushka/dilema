@@ -1,43 +1,9 @@
 package dilema
 
 import (
-	"container/list"
 	"reflect"
 	"sync"
 )
-
-type queueStore struct {
-	sync.Mutex
-	queue *list.List
-}
-
-func newQueueStore() *queueStore {
-	return &queueStore{
-		queue: list.New(),
-	}
-}
-
-func (qs *queueStore) pushEventBack(event operationStartEvent) {
-	qs.Lock()
-	defer qs.Unlock()
-
-	qs.queue.PushBack(event)
-}
-
-func (qs *queueStore) popEvent() operationStartEvent {
-	qs.Lock()
-	defer qs.Unlock()
-
-	el := qs.queue.Front()
-	return qs.queue.Remove(el).(operationStartEvent)
-}
-
-func (qs *queueStore) queueLen() int {
-	qs.Lock()
-	defer qs.Unlock()
-
-	return qs.queue.Len()
-}
 
 type temporaryStore struct {
 	sync.RWMutex
@@ -113,24 +79,24 @@ func (ss *singleToneStore) getSingleToneByType(t reflect.Type) (reflect.Value, b
 	return singletone, ok
 }
 
-type destroyerStore struct {
+type destroyablesStore struct {
 	sync.Mutex
-	destroyers []reflect.Value
+	destroyables []Destroyable
 }
 
-func newDestroyerStore() *destroyerStore {
-	return &destroyerStore{
-		destroyers: make([]reflect.Value, 0),
+func newDestroyablesStore() *destroyablesStore {
+	return &destroyablesStore{
+		destroyables: make([]Destroyable, 0),
 	}
 }
 
-func (ds *destroyerStore) addDestroyer(destroyer reflect.Value) {
+func (ds *destroyablesStore) addDestroyable(destroyable Destroyable) {
 	ds.Lock()
 	defer ds.Unlock()
 
-	ds.destroyers = append(ds.destroyers, destroyer)
+	ds.destroyables = append(ds.destroyables, destroyable)
 }
 
-func (ds *destroyerStore) getDestroyers() []reflect.Value {
-	return ds.destroyers
+func (ds *destroyablesStore) getDestroyables() []Destroyable {
+	return ds.destroyables
 }

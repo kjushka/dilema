@@ -13,71 +13,28 @@ type CallResults interface {
 }
 
 func (di *dicon) Run(function interface{}, args ...interface{}) (CallResults, error) {
-	return di.processRunEvent(function, args...)
+	v := reflect.ValueOf(function)
+	return di.run(v, args...)
 }
 
 func (di *dicon) MustRun(function interface{}, args ...interface{}) CallResults {
-	res, err := di.processRunEvent(function, args...)
+	v := reflect.ValueOf(function)
+	res, err := di.run(v, args...)
 	if err != nil {
 		panic(err)
 	}
 	return res
 }
 
-func (di *dicon) processRunEvent(function interface{}, args ...interface{}) (CallResults, error) {
-	operationCh := make(chan operationEndEvent)
-	event := operationStartEvent{
-		operationCh: operationCh,
-		oType:       runOperation,
-		event: runStartEvent{
-			funcStartEvent: funcStartEvent{
-				function: function,
-				args:     args,
-			},
-		},
-	}
-	di.queueCh <- event
-
-	endEvent := <-operationCh
-	close(operationCh)
-	result := endEvent.result.(runEndEvent)
-
-	return result.cr, result.err
-}
-
-func (di *dicon) Recover(function interface{}, args ...interface{}) (CallResults, error) {
-	return di.processRecoverEvent(function, args...)
-}
-
-func (di *dicon) processRecoverEvent(function interface{}, args ...interface{}) (CallResults, error) {
-	operationCh := make(chan operationEndEvent)
-	event := operationStartEvent{
-		operationCh: operationCh,
-		oType:       recoverOperation,
-		event: recoverStartEvent{
-			funcStartEvent: funcStartEvent{
-				function: function,
-				args:     args,
-			},
-		},
-	}
-	di.queueCh <- event
-
-	endEvent := <-operationCh
-	close(operationCh)
-	result := endEvent.result.(recoverEndEvent)
-
-	return result.cr, result.err
-}
-
-func (di *dicon) recover(function interface{}, args ...interface{}) (cr CallResults, err error) {
+func (di *dicon) Recover(function interface{}, args ...interface{}) (cr CallResults, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			cr, err = nil, r.(error)
 		}
 	}()
 
-	cr, err = di.run(function, args...)
+	v := reflect.ValueOf(function)
+	cr, err = di.run(v, args...)
 	if err != nil {
 		panic(err)
 	}
@@ -85,43 +42,20 @@ func (di *dicon) recover(function interface{}, args ...interface{}) (cr CallResu
 	return
 }
 
-func (di *dicon) RecoverAndClean(function interface{}, args ...interface{}) (CallResults, error) {
-	return di.processRecoverAndCleanEvent(function, args...)
-}
-
-func (di *dicon) processRecoverAndCleanEvent(
-	function interface{},
-	args ...interface{},
-) (CallResults, error) {
-	operationCh := make(chan operationEndEvent)
-	event := operationStartEvent{
-		operationCh: operationCh,
-		oType:       recoverAndCleanOperation,
-		event: recoverAndCleanStartEvent{
-			funcStartEvent: funcStartEvent{
-				function: function,
-				args:     args,
-			},
-		},
-	}
-	di.queueCh <- event
-
-	endEvent := <-operationCh
-	close(operationCh)
-	result := endEvent.result.(recoverAndCleanEndEvent)
-
-	return result.cr, result.err
-}
-
-func (di *dicon) recoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error) {
+func (di *dicon) RecoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			di.clean()
+			err = di.clean()
+			if err != nil {
+				cr = nil
+				return
+			}
 			cr, err = nil, r.(error)
 		}
 	}()
 
-	cr, err = di.run(function, args...)
+	v := reflect.ValueOf(function)
+	cr, err = di.run(v, args...)
 	if err != nil {
 		panic(err)
 	}
@@ -129,26 +63,15 @@ func (di *dicon) recoverAndClean(function interface{}, args ...interface{}) (cr 
 	return
 }
 
-func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) {
-	t, v := reflect.TypeOf(fun), reflect.ValueOf(fun)
+func (di *dicon) run(fun reflect.Value, args ...interface{}) (callResults, error) {
+	t := fun.Type()
 
 	if t.Kind() != reflect.Func {
 		return nil, dilerr.NewTypeError("unexpected fun type")
 	}
 
-	argsMap := make(map[reflect.Type][]reflect.Value)
-	types := make([]reflect.Type, 0)
-	for _, arg := range args {
-		tArg, vArg := reflect.TypeOf(arg), reflect.ValueOf(arg)
-		if arr, ok := argsMap[tArg]; ok {
-			argsMap[tArg] = append(arr, vArg)
-		} else {
-			argsMap[tArg] = []reflect.Value{vArg}
-		}
-		types = append(types, tArg)
-	}
-
 	callArgs := make([]reflect.Value, t.NumIn())
+	argsIndex := 0
 	for i := 0; i < t.NumIn(); i++ {
 		tArg := t.In(i)
 		if arr, ok := argsMap[tArg]; ok && len(arr) > 0 {
@@ -174,7 +97,7 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 				if err != nil {
 					return nil, err
 				}
-				errIndex, err := checkHasError(creationResults)
+				errIndex, err := checkIsError(creationResults)
 				if errIndex != -1 && err != nil {
 					return nil, err
 				}
@@ -227,10 +150,14 @@ func (di *dicon) run(fun interface{}, args ...interface{}) (CallResults, error) 
 	return callResults(results), nil
 }
 
-func (di *dicon) clean() {
-	for _, destroyer := range di.getDestroyers() {
-		destroyer.Call(nil)
+func (di *dicon) clean() error {
+	for _, destroyable := range di.getDestroyables() {
+		err := destroyable.Destroy()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (cr callResults) Process(values ...interface{}) error {

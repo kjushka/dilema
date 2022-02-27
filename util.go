@@ -13,10 +13,15 @@ func checkProvidedTypeIsCreator(provided interface{}) (reflect.Type, reflect.Val
 		return nil, reflect.Value{},
 			dilerr.NewTypeError("expected provided type is func")
 	}
-	if t.NumOut() < 1 && t.Out(0).Kind() != reflect.Interface {
+	if t.NumOut() < 1 && t.NumOut() > 2 && t.Out(0).Kind() != reflect.Interface {
 		return t, v,
-			dilerr.NewTypeError("expected provided return only one interface typed value")
+			dilerr.NewTypeError("expected provided return one or two interface typed value")
 	}
+	if t.NumOut() == 2 && t.Out(1).String() != "error" {
+		return t, v,
+			dilerr.NewTypeError("expected provided return second value interface as error")
+	}
+
 	return t, v, nil
 }
 
@@ -33,7 +38,7 @@ func checkIsDestroyer(destroyer interface{}) error {
 
 func (di *dicon) checkCreationResults(creationResults []reflect.Value) (destroyerIndex int, err error) {
 	if len(creationResults) > 1 {
-		errIndex, err := checkHasError(creationResults)
+		errIndex, err := checkIsError(creationResults)
 		if errIndex != -1 && err != nil {
 			return -1, err
 		}
@@ -57,16 +62,14 @@ func (di *dicon) checkCreationResults(creationResults []reflect.Value) (destroye
 	return destroyerIndex, nil
 }
 
-func checkHasError(creationResults []reflect.Value) (int, error) {
-	for i, result := range creationResults {
-		if result.CanInterface() {
-			if err, ok := result.Interface().(error); ok {
-				return i, err
-			}
+func checkIsError(possibleError reflect.Value) (error, bool) {
+	if possibleError.CanInterface() {
+		if err, ok := possibleError.Interface().(error); ok {
+			return err, ok
 		}
 	}
 
-	return -1, nil
+	return nil, false
 }
 
 func (di *dicon) createInStruct(sType reflect.Type, args ...interface{}) (reflect.Value, bool) {
