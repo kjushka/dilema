@@ -32,12 +32,12 @@ func (di *dicon) registerTemporary(alias string, serviceInit interface{}) error 
 	if _, ok := di.getTemporaryByAlias(alias); ok {
 		return dilerr.GetAlreadyExistError(alias)
 	}
-	t, v, err := checkProvidedTypeIsCreator(serviceInit)
+	_, v, err := checkProvidedTypeIsCreator(serviceInit)
 	if err != nil {
 		return err
 	}
 
-	di.addTemporary(alias, v, t)
+	di.addTemporary(alias, v)
 	return nil
 }
 
@@ -88,7 +88,7 @@ func (di *dicon) registerSingleTone(
 		} 
 	}
 
-	di.addSingleTone(alias, v, t)
+	di.addSingleTone(alias, creationResults[0], t)
 	if destroyable, ok := creationResults[0].Interface().(Destroyable); ok {
 		di.addDestroyable(destroyable)
 	}

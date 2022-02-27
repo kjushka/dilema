@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"reflect"
 )
 
 func main() {
@@ -33,15 +34,12 @@ func main() {
 	}
 	{
 		diThird := dilema.Init()
-		err := diThird.RegisterFew(
-			map[string]interface{}{
-				"action":  service.NewSomeActionWithoutParams,
-				"printer": service.NewSomePrinterWithoutParams,
-			},
-		)
-		if err != nil {
-			panic(err)
-		}
+		diThird.MustRegisterSingletone("action", service.NewSomeActionWithoutParams)
+		diThird.MustRegisterSingletone("printer", service.NewSomePrinterWithoutParams)
+
+		action1 := diThird.MustGetSingletone("action")
+		log.Println(reflect.TypeOf(action1))
+
 		sum := diThird.MustGetSingletone("action").(action.SomeAction).Sum()
 		log.Println(sum)
 		printer, err := diThird.GetSingletone("printer")
@@ -55,7 +53,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		res, err := diThird.RecoverAndClean(someFunc, file, 1)
+		res, err := diThird.RecoverAndClean(someFunc, 1, file)
 		if err != nil {
 			log.Println(err.Error())
 			panic(err)

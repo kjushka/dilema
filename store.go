@@ -8,22 +8,19 @@ import (
 type temporaryStore struct {
 	sync.RWMutex
 	temporaryByAlias map[string]reflect.Value
-	temporaryByType  map[reflect.Type]reflect.Value
 }
 
 func newTemporaryStore() *temporaryStore {
 	return &temporaryStore{
 		temporaryByAlias: make(map[string]reflect.Value),
-		temporaryByType:  make(map[reflect.Type]reflect.Value),
 	}
 }
 
-func (ts *temporaryStore) addTemporary(alias string, v reflect.Value, t reflect.Type) {
+func (ts *temporaryStore) addTemporary(alias string, v reflect.Value) {
 	ts.Lock()
 	defer ts.Unlock()
 
 	ts.temporaryByAlias[alias] = v
-	ts.temporaryByType[t] = v
 }
 
 func (ts *temporaryStore) getTemporaryByAlias(alias string) (reflect.Value, bool) {
@@ -31,14 +28,6 @@ func (ts *temporaryStore) getTemporaryByAlias(alias string) (reflect.Value, bool
 	defer ts.RUnlock()
 
 	temporary, ok := ts.temporaryByAlias[alias]
-	return temporary, ok
-}
-
-func (ts *temporaryStore) getTemporaryByType(t reflect.Type) (reflect.Value, bool) {
-	ts.RLock()
-	defer ts.RUnlock()
-
-	temporary, ok := ts.temporaryByType[t]
 	return temporary, ok
 }
 
