@@ -2,8 +2,8 @@ package dilema
 
 import (
 	"context"
-	"github.com/kjushka/dilema/dilerr"
 	"fmt"
+	"github.com/kjushka/dilema/dilerr"
 	"reflect"
 )
 
@@ -85,7 +85,7 @@ func (di *dicon) registerSingleTone(
 		err, ok := checkIsError(creationResults[1])
 		if ok {
 			return err
-		} 
+		}
 	}
 
 	di.addSingleTone(alias, creationResults[0], t)
@@ -201,7 +201,7 @@ func (di *dicon) getTemporary(alias string, args ...interface{}) (reflect.Value,
 			err, ok := checkIsError(creationResults[1])
 			if ok {
 				return reflect.Value{}, err
-			} 
+			}
 		}
 
 		return creationResults[0], nil
@@ -210,4 +210,34 @@ func (di *dicon) getTemporary(alias string, args ...interface{}) (reflect.Value,
 	return reflect.Value{}, dilerr.NewGetError(
 		fmt.Sprintf("there is no temporary service with alias: %s", alias),
 	)
+}
+
+func (di *dicon) ProcessStruct(str interface{}) error {
+	return di.processStruct(str)
+}
+
+func (di *dicon) MustProcessStruct(str interface{}) {
+	err := di.processStruct(str)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (di *dicon) processStruct(str interface{}) error {
+	vStr := reflect.ValueOf(str)
+	tStr := vStr.Type()
+	if tStr.Kind() != reflect.Ptr ||
+		tStr.Elem().Kind() != reflect.Struct {
+		return dilerr.NewTypeError("expected pointer to struct")
+	}
+
+	created, ok := di.createInStruct(tStr.Elem())
+	if !ok {
+		return dilerr.NewCreationError("cannot create struct")
+	}
+	if !vStr.Elem().CanSet() {
+		return dilerr.NewProcessError("value cannot be setted to this struct")
+	}
+	vStr.Elem().Set(created)
+	return nil
 }

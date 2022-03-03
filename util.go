@@ -43,9 +43,6 @@ func (di *dicon) createInStruct(sType reflect.Type) (reflect.Value, bool) {
 	elem := newValue.Elem()
 
 	for i := 0; i < sType.NumField(); i++ {
-		if sType.Field(i).Type.Kind() != reflect.Interface {
-			return newValue, false
-		}
 		if !elem.Field(i).CanSet() {
 			return newValue, false
 		}

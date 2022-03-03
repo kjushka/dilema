@@ -17,6 +17,8 @@ type Dicon interface {
 	MustGetTemporary(alias string, args ...interface{}) interface{}
 	ProcessTemporary(alias string, container interface{}, args ...interface{}) error
 	MustProcessTemporary(alias string, container interface{}, args ...interface{})
+	ProcessStruct(str interface{}) error
+	MustProcessStruct(str interface{})
 	Run(function interface{}, args ...interface{}) (CallResults, error)
 	MustRun(function interface{}, args ...interface{}) CallResults
 	Recover(function interface{}, args ...interface{}) (cr CallResults, err error)
