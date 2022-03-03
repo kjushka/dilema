@@ -68,6 +68,19 @@ func (ss *singleToneStore) getSingleToneByType(t reflect.Type) (reflect.Value, b
 	return singletone, ok
 }
 
+func (ss *singleToneStore) checkForImplements(t reflect.Type) (reflect.Value, bool) {
+	ss.RLock()
+	defer ss.RUnlock()
+
+	for _, v := range ss.singleTonesByType {
+		if v.Type().Implements(t) {
+			return v, true
+		}
+	}
+
+	return reflect.Value{}, false
+}
+
 type destroyablesStore struct {
 	sync.Mutex
 	destroyables []Destroyable

@@ -87,9 +87,16 @@ func (di *dicon) run(fun reflect.Value, args ...interface{}) (cr callResults, er
 
 	for i := 0; i < t.NumIn(); i++ {
 		tIn := t.In(i)
+
 		if tIn == currentArgument.Type() {
 			callArgs = append(callArgs, currentArgument)
 			updateArgument()
+			continue
+		}
+		
+		container, ok := di.getSingleToneByType(tIn)
+		if ok {
+			callArgs = append(callArgs, container)
 			continue
 		}
 
@@ -100,8 +107,7 @@ func (di *dicon) run(fun reflect.Value, args ...interface{}) (cr callResults, er
 				continue
 			}
 
-			container, ok := di.getSingleToneByType(tIn)
-			if ok {
+			if container, ok := di.checkForImplements(tIn); ok {
 				callArgs = append(callArgs, container)
 				continue
 			}
