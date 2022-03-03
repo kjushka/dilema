@@ -147,7 +147,7 @@ func (di *dicon) getSingletone(alias string) (reflect.Value, error) {
 		return singleTone, nil
 	}
 	return reflect.Value{}, dilerr.NewGetError(
-		fmt.Sprintf("There is no singletone with alias: %s", alias),
+		fmt.Sprintf("there is no singletone with alias: %s", alias),
 	)
 }
 
@@ -208,6 +208,6 @@ func (di *dicon) getTemporary(alias string, args ...interface{}) (reflect.Value,
 	}
 
 	return reflect.Value{}, dilerr.NewGetError(
-		fmt.Sprintf("There is no temporary service with alias: %s", alias),
+		fmt.Sprintf("there is no temporary service with alias: %s", alias),
 	)
 }

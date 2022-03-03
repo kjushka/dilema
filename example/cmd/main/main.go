@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"reflect"
 )
 
 func main() {
@@ -36,9 +35,6 @@ func main() {
 		diThird := dilema.Init()
 		diThird.MustRegisterSingletone("action", service.NewSomeActionWithoutParams)
 		diThird.MustRegisterSingletone("printer", service.NewSomePrinterWithoutParams)
-
-		action1 := diThird.MustGetSingletone("action")
-		log.Println(reflect.TypeOf(action1))
 
 		sum := diThird.MustGetSingletone("action").(action.SomeAction).Sum()
 		log.Println(sum)
