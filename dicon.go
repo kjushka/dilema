@@ -2,7 +2,7 @@ package dilema
 
 import (
 	"context"
-	"dilema/dilerr"
+	"github.com/kjushka/dilema/dilerr"
 	"fmt"
 	"reflect"
 )

@@ -1,7 +1,7 @@
 package dilema
 
 import (
-	"dilema/dilerr"
+	"github.com/kjushka/dilema/dilerr"
 	"reflect"
 )
 

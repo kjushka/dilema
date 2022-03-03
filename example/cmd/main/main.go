@@ -1,9 +1,9 @@
 package main
 
 import (
-	"dilema"
-	"dilema/example/internal/action"
-	"dilema/example/internal/service"
+	"github.com/kjushka/dilema"
+	"github.com/kjushka/dilema/example/internal/action"
+	"github.com/kjushka/dilema/example/internal/service"
 	"fmt"
 	"io"
 	"log"

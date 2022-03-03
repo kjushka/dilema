@@ -1,7 +1,7 @@
 package service
 
 import (
-	"dilema/example/internal/action"
+	"github.com/kjushka/dilema/example/internal/action"
 	"log"
 	"math/rand"
 )
