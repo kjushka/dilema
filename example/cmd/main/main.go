@@ -42,7 +42,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		printer.(action.SomePrinter).PrintSome()
+		printer.(*service.SomePrinterWithoutParams).PrintSome()
 
 		var file io.Reader
 		file, err = os.Open("./example/cmd/main/text.txt")

@@ -1,18 +1,17 @@
 package service
 
 import (
-	"github.com/kjushka/dilema/example/internal/action"
 	"log"
 )
 
-type somePrinterWithoutParams struct {
+type SomePrinterWithoutParams struct {
 	text string
 }
 
-func NewSomePrinterWithoutParams() action.SomePrinter {
-	return &somePrinterWithoutParams{text: "Hello world!"}
+func NewSomePrinterWithoutParams() *SomePrinterWithoutParams {
+	return &SomePrinterWithoutParams{text: "Hello world!"}
 }
 
-func (sp *somePrinterWithoutParams) PrintSome() {
+func (sp *SomePrinterWithoutParams) PrintSome() {
 	log.Println(sp.text)
 }

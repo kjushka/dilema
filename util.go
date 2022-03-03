@@ -13,7 +13,10 @@ func checkProvidedTypeIsCreator(provided interface{}) (reflect.Type, reflect.Val
 		return nil, reflect.Value{},
 			dilerr.NewTypeError("expected provided type is func")
 	}
-	if t.NumOut() < 1 && t.NumOut() > 2 && t.Out(0).Kind() != reflect.Interface {
+	if t.NumOut() < 1 && t.NumOut() > 2 &&
+		t.Out(0).Kind() != reflect.Interface &&
+		t.Out(0).Kind() != reflect.Ptr &&
+		t.Out(0).Kind() != reflect.Struct {
 		return t, v,
 			dilerr.NewTypeError("expected provided return one or two interface typed value")
 	}
@@ -68,10 +71,10 @@ func (di *dicon) createInStruct(sType reflect.Type) (reflect.Value, bool) {
 func processValue(val reflect.Value, container interface{}) error {
 	vCont := reflect.ValueOf(container)
 	tCont := vCont.Type()
-	elem := vCont.Elem()
 	if tCont.Kind() != reflect.Ptr {
 		return dilerr.NewProcessError("expected ptr values")
 	}
+	elem := vCont.Elem()
 	if !elem.CanSet() {
 		return dilerr.NewProcessError("agruments can't be setted")
 	}
