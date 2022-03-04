@@ -124,7 +124,7 @@ func (di *dicon) run(fun reflect.Value, args ...interface{}) (cr callResults, er
 		if tIn.Kind() == reflect.Struct {
 			created, ok := di.createInStruct(tIn)
 			if ok {
-				callArgs = append(callArgs, created)
+				callArgs = append(callArgs, created.Elem())
 				continue
 			}
 		}

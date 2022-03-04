@@ -238,6 +238,6 @@ func (di *dicon) processStruct(str interface{}) error {
 	if !vStr.Elem().CanSet() {
 		return dilerr.NewProcessError("value cannot be setted to this struct")
 	}
-	vStr.Elem().Set(created)
+	vStr.Elem().Set(created.Elem())
 	return nil
 }
