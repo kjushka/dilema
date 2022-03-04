@@ -88,7 +88,7 @@ func (di *dicon) registerSingleTone(
 		}
 	}
 
-	di.addSingleTone(alias, creationResults[0], t)
+	di.addSingleTone(alias, creationResults[0], creationResults[0].Type())
 	if destroyable, ok := creationResults[0].Interface().(Destroyable); ok {
 		di.addDestroyable(destroyable)
 	}
