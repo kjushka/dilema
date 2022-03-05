@@ -8,7 +8,15 @@ import (
 type callResults []reflect.Value
 
 type CallResults interface {
+	// Process allows you to set the values of the function execution results 
+	// to the variables passed by reference. 
+	// Variables must be passed in the order that the function returns them.
+	// If substitution failed, an error will be returned.
 	Process(values ...interface{}) error
+	// MustProcess allows you to set the values of the function execution results 
+	// to the variables passed by reference. 
+	// Variables must be passed in the order that the function returns them.
+	// If substitution failed, method will panic.
 	MustProcess(values ...interface{})
 }
 

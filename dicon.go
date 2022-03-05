@@ -26,8 +26,6 @@ func (di *dicon) MustRegisterTemporary(alias string, serviceInit interface{}) {
 	}
 }
 
-// registerTemporary provides new service, which will be initialized when
-// you call Get method and be destroyed with GC after work will be done
 func (di *dicon) registerTemporary(alias string, serviceInit interface{}) error {
 	if _, ok := di.getTemporaryByAlias(alias); ok {
 		return dilerr.GetAlreadyExistError(alias)
@@ -60,9 +58,6 @@ func (di *dicon) MustRegisterSingletone(
 	}
 }
 
-// registerSingleTone provides new singletone - constant service, which is being created only
-// one time during all time that program works. It's being initialized immediately
-// ProvideSingleTone called. That's why if it's necessary some arguments can be attached
 func (di *dicon) registerSingleTone(
 	alias string,
 	serviceInit interface{},
@@ -96,7 +91,6 @@ func (di *dicon) registerSingleTone(
 	return nil
 }
 
-// createService creates instance of service, which interface return from provided func
 func (di *dicon) createService(
 	v reflect.Value,
 	args ...interface{},
@@ -188,7 +182,6 @@ func (di *dicon) MustProcessTemporary(alias string, container interface{}, args 
 	}
 }
 
-// Get return services typed with some interface or construct and return service, if it is temporary.
 func (di *dicon) getTemporary(alias string, args ...interface{}) (reflect.Value, error) {
 	tempConstructor, ok := di.getTemporaryByAlias(alias)
 	if ok {
