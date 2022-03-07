@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/kjushka/dilema"
-	"github.com/kjushka/dilema/example/internal/action"
-	"github.com/kjushka/dilema/example/internal/service"
 	"fmt"
 	"io"
 	"log"
 	"os"
+
+	"github.com/kjushka/dilema"
+	"github.com/kjushka/dilema/test_data/action"
+	"github.com/kjushka/dilema/test_data/service"
 )
 
 func main() {

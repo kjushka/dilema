@@ -65,16 +65,24 @@ func (di *dicon) createInStruct(sType reflect.Type) (reflect.Value, bool) {
 	return newValue, true
 }
 
-func processValue(val reflect.Value, container interface{}) error {
+func processValue(val reflect.Value, container interface{}) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
 	vCont := reflect.ValueOf(container)
 	tCont := vCont.Type()
 	if tCont.Kind() != reflect.Ptr {
-		return dilerr.NewProcessError("expected ptr values")
+		err = dilerr.NewProcessError("expected ptr values")
+		return
 	}
 	elem := vCont.Elem()
 	if !elem.CanSet() {
-		return dilerr.NewProcessError("agruments can't be setted")
+		err = dilerr.NewProcessError("agruments can't be setted")
+		return
 	}
 	elem.Set(val)
-	return nil
+	return
 }

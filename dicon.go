@@ -216,21 +216,30 @@ func (di *dicon) MustProcessStruct(str interface{}) {
 	}
 }
 
-func (di *dicon) processStruct(str interface{}) error {
+func (di *dicon) processStruct(str interface{}) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
 	vStr := reflect.ValueOf(str)
 	tStr := vStr.Type()
 	if tStr.Kind() != reflect.Ptr ||
 		tStr.Elem().Kind() != reflect.Struct {
-		return dilerr.NewTypeError("expected pointer to struct")
+		err =  dilerr.NewTypeError("expected pointer to struct")
+		return
 	}
 
 	created, ok := di.createInStruct(tStr.Elem())
 	if !ok {
-		return dilerr.NewCreationError("cannot create struct")
+		err = dilerr.NewCreationError("cannot create struct")
+		return
 	}
 	if !vStr.Elem().CanSet() {
-		return dilerr.NewProcessError("value cannot be setted to this struct")
+		err = dilerr.NewProcessError("value cannot be setted to this struct")
+		return
 	}
 	vStr.Elem().Set(created.Elem())
-	return nil
+	return
 }
