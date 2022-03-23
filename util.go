@@ -59,7 +59,13 @@ func (di *dicon) createInStruct(sType reflect.Type) (reflect.Value, bool) {
 				elem.Field(i).Set(container)
 				continue
 			}
+			container, ok = di.checkForImplements(fieldType)
+			if ok {
+				elem.Field(i).Set(container)
+				continue
+			}
 		}
+		return newValue, false
 	}
 
 	return newValue, true
