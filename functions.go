@@ -8,13 +8,13 @@ import (
 type callResults []reflect.Value
 
 type CallResults interface {
-	// Process allows you to set the values of the function execution results 
-	// to the variables passed by reference. 
+	// Process allows you to set the values of the function execution results
+	// to the variables passed by reference.
 	// Variables must be passed in the order that the function returns them.
 	// If substitution failed, an error will be returned.
 	Process(values ...interface{}) error
-	// MustProcess allows you to set the values of the function execution results 
-	// to the variables passed by reference. 
+	// MustProcess allows you to set the values of the function execution results
+	// to the variables passed by reference.
 	// Variables must be passed in the order that the function returns them.
 	// If substitution failed, method will panic.
 	MustProcess(values ...interface{})
@@ -79,13 +79,16 @@ func (di *dicon) run(fun reflect.Value, args ...interface{}) (cr callResults, er
 	}
 
 	callArgs := make([]reflect.Value, 0)
-	if len(args) == 0 {
+	if t.NumIn() == 0 {
 		results := fun.Call(callArgs)
 		return callResults(results), nil
 	}
 
 	argIndex := 0
-	currentArgument := reflect.ValueOf(args[argIndex])
+	currentArgument := reflect.Value{}
+	if len(args) != 0 {
+		currentArgument = reflect.ValueOf(args[argIndex])
+	}
 	updateArgument := func() {
 		argIndex++
 		if argIndex != len(args) {
@@ -96,12 +99,12 @@ func (di *dicon) run(fun reflect.Value, args ...interface{}) (cr callResults, er
 	for i := 0; i < t.NumIn(); i++ {
 		tIn := t.In(i)
 
-		if tIn == currentArgument.Type() {
+		if len(args) != 0 && tIn == currentArgument.Type() {
 			callArgs = append(callArgs, currentArgument)
 			updateArgument()
 			continue
 		}
-		
+
 		container, ok := di.getSingleToneByType(tIn)
 		if ok {
 			callArgs = append(callArgs, container)
