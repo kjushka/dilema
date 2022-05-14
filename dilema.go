@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-type Dicon interface {
+type Dilema interface {
 	// RegisterTemporary registers a temporary container where serviceInit is a function-constructor
 	// that returns either an interface value or an interface value and an error. 
 	// The method returns a type mismatch error, if one was found. 
@@ -93,14 +93,20 @@ type Dicon interface {
 	// in which they are required to call the function. 
 	// Returns Call Results and an error, if any occures when the function was started. 
 	// In case of panic inside the function, this method processes and returns the error that occurred.
-	Recover(function interface{}, args ...interface{}) (cr CallResults, err error)
+	Recover(function interface{}, args ...interface{}) (callResults CallResults, err error)
 	// RecoverAndClean calls the function passed as the first argument. 
 	// The arguments of the function must be passed in the order 
 	// in which they are required to call the function. 
 	// Returns Call Results and an error, if any occures when the function was started. 
 	// In case of panic inside the function, this method processes and returns the error 
 	// that has occurred, and also calls the Destroy() method for registered permanent containers.
-	RecoverAndClean(function interface{}, args ...interface{}) (cr CallResults, err error)
+	RecoverAndClean(function interface{}, args ...interface{}) (callResults CallResults, err error)
+	// Clean calls the Destroy() method for registered permanent containers.
+	// Returns error in case call of the Destroy() method failed.
+	Clean() error
+	// Clean calls the Destroy() method for registered permanent containers.
+	// Panic with error in case call of the Destroy() method failed.
+	MustClean()
 	// Ctx allows you to get the context of the DI container.
 	Ctx() context.Context
 	// SetCtx allows you to set a new context in the DI-container.
@@ -111,7 +117,7 @@ type Dicon interface {
 	GetFromCtx(alias string) interface{}
 }
 
-func Init() Dicon {
+func Init() Dilema {
 	di := &dicon{
 		temporaryStore:    newTemporaryStore(),
 		singleToneStore:   newSingleToneStore(),

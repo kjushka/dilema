@@ -1,8 +1,11 @@
 package dilema
 
 import (
-	"github.com/kjushka/dilema/dilerr"
+	"fmt"
 	"reflect"
+	"strings"
+
+	"github.com/kjushka/dilema/dilerr"
 )
 
 type callResults []reflect.Value
@@ -148,12 +151,28 @@ func (di *dicon) run(fun reflect.Value, args ...interface{}) (cr callResults, er
 	return callResults(results), nil
 }
 
+func (di *dicon) Clean() error {
+	return di.clean()
+}
+
+func (di *dicon) MustClean() {
+	err := di.clean()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (di *dicon) clean() error {
-	for _, destroyable := range di.getDestroyables() {
+	destroyables := di.getDestroyables()
+	errors := make([]string, 0, )
+	for _, destroyable := range destroyables {
 		err := destroyable.Destroy()
 		if err != nil {
-			return err
+			errors = append(errors, err.Error())
 		}
+	}
+	if len(errors) != 0 {
+		return fmt.Errorf("Clean finished with errors: %s", strings.Join(errors, ", "))
 	}
 	return nil
 }
